@@ -33,6 +33,15 @@ const Message = sequelize.define('Message', {
   file_content: {
     type: DataTypes.TEXT,
   },
+  file_url: {
+    type: DataTypes.STRING,
+  },
+  file_type: {
+    type: DataTypes.STRING(50),
+  },
+  file_size: {
+    type: DataTypes.INTEGER,
+  },
 }, { tableName: 'message', timestamps: false });
 
 module.exports = Message;

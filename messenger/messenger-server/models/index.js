@@ -5,9 +5,9 @@ const Message = require('./Message');
 const SettingsSet = require('./SettingsSet');
 
 module.exports = {
-    User,
-    Channel,
-    Contact,
-    Message,
-    SettingsSet
-}
+  User,
+  Channel,
+  Contact,
+  Message,
+  SettingsSet,
+};

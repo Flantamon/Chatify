@@ -1,70 +1,67 @@
+/* eslint-disable import/no-extraneous-dependencies */
+/* eslint-disable no-unused-vars */
 const jwt = require('jsonwebtoken');
-const { sequelize } = require('../config/database');
 const bcrypt = require('bcryptjs');
+const { sequelize } = require('../config/database');
 const { User, SettingsSet } = require('../models'); // Убедитесь, что путь к модели User корректен
 require('dotenv').config(); // Для использования переменных окружения, таких как секрет JWT
+const logger = require('../utils/logger');
 
 // Регистрация нового пользователя
 exports.register = async (req, res) => {
   try {
     const { username, email, password } = req.body;
+    logger.info(`User registration attempt: ${email}`);
 
     const [newUser] = await sequelize.query(
       'SELECT * FROM register_user(:username, :email, :password, :role)',
       {
         replacements: {
-          username,
-          email,
-          password,
-          role: 'user'
+          username, email, password, role: 'user',
         },
-        type: sequelize.QueryTypes.SELECT
-      }
+        type: sequelize.QueryTypes.SELECT,
+      },
     );
-    const settingsSet = new SettingsSet({ // Предполагается, что модель SettingsSet импортирована
-      user_id: newUser.user_id, // Связываем настройки с пользователем
-      // Добавьте другие необходимые поля для settings_set
-    });
 
-    await settingsSet.save(); // Сохраняем настройки
+    const settingsSet = new SettingsSet({ user_id: newUser.user_id });
+    await settingsSet.save();
 
-
-    res.status(201).json({ message: 'Пользователь успешно зарегистрирован' });
+    logger.info(`User registered successfully: ${email} (ID: ${newUser.user_id})`);
+    res.status(201).json({ message: 'User registered successfully' });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    logger.error(`User registration failed for ${req.body.email}: ${err.message}`);
+    res.status(500).json({ message: 'Server error' });
   }
 };
 
-// Авторизация пользователя
+// Аутентификация пользователя
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+    logger.info(`Login attempt: ${email}`);
 
     const [user] = await sequelize.query(
       'SELECT * FROM authenticate_user(:email, :password)',
       {
         replacements: { email, password },
-        type: sequelize.QueryTypes.SELECT
-      }
+        type: sequelize.QueryTypes.SELECT,
+      },
     );
 
-    // Если пользователь не найден или пароль неверный
     if (!user) {
-      return res.status(401).json({ 
-        message: 'Неверный email или пароль' 
-      });
+      logger.warn(`Failed login attempt: ${email}`);
+      return res.status(401).json({ message: 'Invalid email or password' });
     }
 
-    // Генерация JWT
     const token = jwt.sign(
       { id: user.user_id, role: user.user_role },
       process.env.JWT_SECRET,
-      { expiresIn: '360d' }
+      { expiresIn: '360d' },
     );
 
-    res.status(200).json({
-      message: 'Авторизация успешна',
+    logger.info(`User logged in successfully: ${email}`);
+    return res.status(200).json({
+      message: 'Login successful',
       token,
       user: {
         id: user.user_id,
@@ -75,24 +72,26 @@ exports.login = async (req, res) => {
       },
     });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: 'Ошибка сервера' });
+    logger.error(`Login error for user ${req.body.email}: ${err.message}`);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 // Middleware для проверки токена
 exports.verifyToken = (req, res, next) => {
-  const token = req.headers['authorization'];
+  const token = req.headers.authorization;
   if (!token) {
-    return res.status(403).json({ message: 'Токен не предоставлен' });
+    logger.warn('Unauthorized access attempt (no token provided)');
+    return res.status(403).json({ message: 'Token not provided' });
   }
 
   try {
-    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET); // Уберите "Bearer", если он есть
-    req.user = decoded; // Добавляем декодированную информацию в запрос
-    next();
+    const decoded = jwt.verify(token.split(' ')[1], process.env.JWT_SECRET);
+    req.user = decoded;
+    logger.info(`Token verified successfully, user ID: ${decoded.id}`);
+    return next();
   } catch (err) {
-    console.error(err);
-    return res.status(401).json({ message: 'Неверный или истёкший токен' });
+    logger.error(`Token verification failed: ${err.message}`);
+    return res.status(401).json({ message: 'Invalid or expired token' });
   }
 };

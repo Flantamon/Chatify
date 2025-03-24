@@ -16,4 +16,3 @@ const authenticateDatabase = async () => {
 };
 
 module.exports = { sequelize, authenticateDatabase };
-

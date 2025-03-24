@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = express.Router();
 const {
   getAllUsers,
@@ -7,7 +8,7 @@ const {
   getChannels,
   addChannel,
   editChannel,
-  deleteChannel
+  deleteChannel,
 } = require('../controllers/adminController');
 const { checkUserPermissions } = require('../utils/permissions');
 

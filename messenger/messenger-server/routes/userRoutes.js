@@ -1,5 +1,8 @@
 const express = require('express');
-const { getMessages, addMessage, deleteMessage, updateMessage, getContacts, getChannels, getSettings, updateSettings, searchUsers, addContact, deleteContact } = require('../controllers/userController');
+const {
+  // eslint-disable-next-line max-len
+  getMessages, addMessage, deleteMessage, updateMessage, getContacts, getChannels, getSettings, updateSettings, searchUsers, addContact, deleteContact,
+} = require('../controllers/userController');
 const { checkUserPermissions } = require('../utils/permissions');
 
 const router = express.Router();

@@ -14,6 +14,7 @@ const ChatWindow = ({
   const [editingMessage, setEditingMessage] = useState(null);
   const [editInput, setEditInput] = useState('');
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, message: null });
+  const [selectedFile, setSelectedFile] = useState(null);
 
   // Получение токена из localStorage
   const getToken = () => {
@@ -81,36 +82,61 @@ const ChatWindow = ({
     };
   }, []);
 
-  // Отправка сообщения на сервер
-  const sendMessage = async () => {
-    if (input.trim() !== '') {
-    const fieldType = chat.type === 'contact' ? 'receiver_user_id' : 'receiver_channel_id';
-      const newMessage = {
-        [fieldType]: chat.id,
-        text: input
-      };
-
-      try {
-        const token = getToken();
-        const response = await fetch('http://localhost:3001/user/messages', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(newMessage),
-        });
-
-        if (response.ok) {
-          const savedMessage = await response.json();
-          setMessages([...messages, savedMessage]);
-          setInput('');
-        } else {
-          console.error('Failed to send message:', response.status);
-        }
-      } catch (error) {
-        console.error('Error sending message:', error);
+  // Добавляем обработчик выбора файла
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      if (file.type.startsWith('audio/') || file.type.startsWith('video/')) {
+        alert('Аудио и видео файлы не поддерживаются');
+        return;
       }
+      if (file.size > 10 * 1024 * 1024) { // 10MB
+        alert('Размер файла не должен превышать 10MB');
+        return;
+      }
+      setSelectedFile(file);
+    }
+  };
+
+  // Модифицируем функцию отправки сообщения
+  const sendMessage = async () => {
+    if (input.trim() === '' && !selectedFile) return;
+
+    const fieldType = chat.type === 'contact' ? 'receiver_user_id' : 'receiver_channel_id';
+    const formData = new FormData();
+    formData.append(fieldType, chat.id);
+    
+    if (input.trim() !== '') {
+      formData.append('text', input);
+    }
+    
+    if (selectedFile) {
+      formData.append('file', selectedFile);
+    }
+
+    try {
+      const token = getToken();
+      const response = await fetch('http://localhost:3001/user/messages', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (response.ok) {
+        const savedMessage = await response.json();
+        setMessages([...messages, savedMessage]);
+        setInput('');
+        setSelectedFile(null);
+        // Очищаем input файла
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
+      } else {
+        console.error('Failed to send message:', response.status);
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
@@ -199,19 +225,92 @@ const ChatWindow = ({
     }
   };
 
+  const getFileIcon = (fileType) => {
+    if (fileType.includes('image/')) return '🖼️';
+    if (fileType.includes('pdf')) return '📄';
+    if (fileType.includes('word') || fileType.includes('document')) return '📝';
+    if (fileType.includes('sheet') || fileType.includes('excel')) return '📊';
+    if (fileType.includes('zip') || fileType.includes('rar')) return '📦';
+    return '📎';
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+  };
+
+  const formatMessageTime = (timestamp) => {
+    const date = new Date(timestamp);
+    // Преобразуем в московское время (UTC+3)
+    const moscowTime = new Date(date.getTime() + (3 * 60 * 60 * 1000));
+    return moscowTime.toLocaleTimeString('ru-RU', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  const renderMessage = (message) => {
+    return (
+      <div 
+        key={message.id} 
+        className={`message ${message.sender_id === getUserIdFromToken() ? 'sent' : 'received'}`}
+        onContextMenu={(e) => handleContextMenu(e, message)}
+      >
+        <div className="message-header">
+          <span className="sender-name">{message.sender_name}</span>
+          <span className="message-time">
+            {formatMessageTime(message.created_at)}
+          </span>
+        </div>
+
+        {message.text && <div className="message-text">{message.text}</div>}
+
+        {message.file_url && (
+          <div className="message-file">
+            <div className="file-info">
+              <span className="file-icon">
+                {getFileIcon(message.file_type)}
+              </span>
+              <span className="file-name" title={message.file_name}>
+                {message.file_name}
+              </span>
+              <span className="file-size">
+                {formatFileSize(message.file_size)}
+              </span>
+            </div>
+            
+            {message.file_type.startsWith('image/') ? (
+              <img 
+                src={`http://localhost:3001${message.file_url}`}
+                alt={message.file_name}
+                className="image-preview"
+                onClick={() => window.open(`http://localhost:3001${message.file_url}`, '_blank')}
+              />
+            ) : (
+              <a 
+                href={`http://localhost:3001${message.file_url}`}
+                download={message.file_name}
+                className="download-button"
+              >
+                Скачать файл
+              </a>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className={`chat-window ${theme}`} onClick={closeContextMenu}>
       <h2>{chat.name}</h2>
       <div className="messages">
         {messages.map((message, index) => (
-          <div 
-            key={index} 
-            className={`message ${message.sender_id === getToken() ? 'my-message' : 'other-message'}`} 
-            onContextMenu={(e) => handleContextMenu(e, message)}
-          >
-            <strong>{message.sender_name}: </strong>{message.text}
-          </div>
-        ))}
+          renderMessage(message))
+        )}
       </div>
       {contextMenu.visible && (
         <ContextMenu 
@@ -234,15 +333,27 @@ const ChatWindow = ({
           </div>
         </div>
       )}
-      <div className="input-area">
+      <div className="message-input">
         <input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyPress={handleKeyPress}
-          placeholder="Type your message..."
+          placeholder="Введите сообщение..."
         />
-        <button onClick={sendMessage}>Send</button>
+        <input
+          type="file"
+          onChange={handleFileSelect}
+          style={{ display: 'none' }}
+          id="file-input"
+        />
+        <button 
+          className="attach-file"
+          onClick={() => document.getElementById('file-input').click()}
+        >
+          📎
+        </button>
+        <button onClick={sendMessage}>Отправить</button>
       </div>
     </div>
   );
