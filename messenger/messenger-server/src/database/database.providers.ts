@@ -1,10 +1,10 @@
 import { Provider } from '@nestjs/common';
 import { Sequelize } from 'sequelize-typescript';
-import { Message } from 'src/user/messages/entities/message.entity';
-import { User } from 'src/user/users/entities/user.entity';
-import { SettingsSet } from 'src/user/settings/entities/setting.entity';
-import { Channel } from 'src/user/channels/entities/channel.entity';
-import { Contact } from 'src/user/contacts/entities/contact.entity';
+import { Message } from '../message/message.entity';
+import { User } from '../user/user.entity';
+import { SettingsSet } from '../settings-set/setting-set.entity';
+import { Channel } from '../channel/channel.entity';
+import { Contact } from '../contact/contact.entity';
 
 export const Database: Provider = {
   provide: 'SEQUELIZE',
