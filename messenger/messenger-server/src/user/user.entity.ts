@@ -9,7 +9,7 @@ import {
   Default,
 } from 'sequelize-typescript';
 
-@Table({ tableName: 'user', timestamps: false })
+@Table({ tableName: 'users', timestamps: false })
 export class User extends Model<User> {
   @PrimaryKey
   @AutoIncrement

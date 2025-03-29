@@ -1,0 +1,79 @@
+services:
+  messenger-server-migration-runner:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: messenger-server-migration-runner
+    depends_on:
+      - postgres
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - messenger
+    env_file: .env
+    environment:
+      PG_HOST: postgres
+    entrypoint: >
+      sh -c "
+      until nc -z postgres 5432; do
+        echo 'Waiting for PostgreSQL...';
+        sleep 2;
+      done;
+      echo 'PostgreSQL is ready!';
+      npm run migration:run:dev;
+      echo 'Migrations completed!';
+      "
+
+  messenger-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: messenger-server
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      PG_HOST: postgres
+    ports:
+      - "${HTTP_PORT}:${HTTP_PORT}"
+      - "9229:9229"
+    volumes:
+      - .:/app
+      - /app/node_modules
+    networks:
+      - messenger
+    depends_on:
+      messenger-server-migration-runner:
+        condition: service_completed_successfully
+    entrypoint: >
+      sh -c "
+      until nc -z postgres 5432; do
+        echo 'Waiting for PostgreSQL...';
+        sleep 2;
+      done;
+      echo 'Starting backend!';
+      npm run start:dev;
+      "
+
+  postgres:
+    image: postgres:15
+    container_name: postgres
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      POSTGRES_DB: ${PG_DATABASE}
+    ports:
+      - "5433:5432"
+    volumes:
+      - messenger-server:/var/lib/postgresql/data
+    networks:
+      - messenger
+
+networks:
+  messenger:
+    external: true
+
+volumes:
+  messenger-server:
