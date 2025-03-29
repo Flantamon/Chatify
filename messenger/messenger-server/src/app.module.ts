@@ -8,7 +8,6 @@ import { SettingsSetModule } from './settings-set/settings-set.module';
 import { ChannelModule } from './channel/channel.module';
 import { UserStatisticsModule } from './user-statistics/user-statistics.module';
 import { AuthModule } from './auth/auth.module';
-import { Database } from './database/database.providers';
 
 @Module({
   imports: [
@@ -21,7 +20,6 @@ import { Database } from './database/database.providers';
     MessageModule,
   ],
   controllers: [AppController],
-  providers: [AppService, Database],
-  exports: [Database],
+  providers: [AppService],
 })
 export class AppModule {}
