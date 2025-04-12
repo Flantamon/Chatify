@@ -1,7 +1,5 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
-import { User } from 'src/user/user.entity';
-
 export type S3SettingsConfig = {
   awsAccessKey: string;
   awsSecretKey: string;
@@ -14,7 +12,8 @@ export type Config = {
   dbConfig: TypeOrmModuleOptions;
   S3Config: S3SettingsConfig;
 };
-
+console.log(process.env.PG_HOST);
+console.log(process.env.PG_DATABASE);
 export default (): Config => ({
   dbConfig: {
     type: 'postgres',
@@ -23,7 +22,7 @@ export default (): Config => ({
     username: process.env.PG_USER,
     password: process.env.PG_PASSWORD,
     database: process.env.PG_DATABASE,
-    entities: [__dirname + '/**/*.entity{.ts,.js}', User],
+    entities: [__dirname + '/**/*.entity{.ts,.js}'],
     migrations: [__dirname + '/migrations/**/*{.ts,.js}'],
     synchronize: false,
     ssl: Boolean(process.env.PG_SSL),
