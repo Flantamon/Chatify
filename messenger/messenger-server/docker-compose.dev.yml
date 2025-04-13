@@ -39,7 +39,6 @@ services:
       - "9229:9229"
     volumes:
       - .:/app
-      - /app/node_modules
     networks:
       - messenger
     depends_on:
