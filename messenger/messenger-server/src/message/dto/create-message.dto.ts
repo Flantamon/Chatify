@@ -1,22 +1,33 @@
-import { IsString, IsOptional } from 'class-validator';
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+import { IsNumber, IsOptional, IsString, ValidateIf } from 'class-validator';
 
 export class CreateMessageDto {
+  @IsNumber()
+  @IsOptional()
+  receiverChannelId?: number;
+
+  @IsNumber()
+  @IsOptional()
+  receiverUserId?: number;
+
+  @ValidateIf((o) => !o.fileUrl)
   @IsString()
-  text: string;
+  @IsOptional()
+  text?: string;
 
   @IsString()
   @IsOptional()
-  file_name?: string;
+  fileName?: string;
 
   @IsString()
   @IsOptional()
-  file_url?: string;
+  fileUrl?: string;
 
   @IsString()
   @IsOptional()
-  file_type?: string;
+  fileType?: string;
 
-  @IsString()
+  @IsNumber()
   @IsOptional()
-  file_size?: number;
+  fileSize?: number;
 }

@@ -1,34 +1,65 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Delete,
+  UseGuards,
+  Req,
+  Headers,
+} from '@nestjs/common';
 import { SettingsSetService } from './settings-set.service';
 import { CreateSettingsSetDto } from './dto/create-settings-set.dto';
 import { UpdateSettingsSetDto } from './dto/update-settings-set.dto';
+import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
+import { parseAcceptLanguage } from 'src/shared/utils/parse-accept-language';
+import { RequestWithUser } from 'src/shared/interfaces/user-request.interface';
+import { RolesGuard } from 'src/shared/guards/roles.guard';
+import { Roles } from 'src/shared/decorators/roles.decorator';
+import { UserRole } from 'src/shared/enums/user-role.enum';
 
-@Controller('settings-set')
+@UseGuards(JwtAuthGuard)
+@Controller('settings')
 export class SettingsSetController {
-  constructor(private readonly settingsSetService: SettingsSetService) {}
+  constructor(private readonly settingsService: SettingsSetService) {}
 
   @Post()
-  create(@Body() createSettingsSetDto: CreateSettingsSetDto) {
-    return this.settingsSetService.create(createSettingsSetDto);
+  async create(
+    @Req() req: RequestWithUser,
+    @Body() dto: CreateSettingsSetDto,
+    @Headers('accept-language') acceptLang: string,
+  ) {
+    const language = dto.language || parseAcceptLanguage(acceptLang);
+    const user_id = req.user.id;
+    return this.settingsService.create(user_id, { ...dto, language });
   }
 
-  @Get()
-  findAll() {
-    return this.settingsSetService.findAll();
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.USER)
+  @Get('me')
+  async findMySettings(@Req() req: RequestWithUser) {
+    const user_id = req.user.id;
+    return this.settingsService.findOne(user_id);
   }
 
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.settingsSetService.findOne(+id);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.USER)
+  @Patch('me')
+  async updateMySettings(
+    @Req() req: RequestWithUser,
+    @Body() dto: UpdateSettingsSetDto,
+  ) {
+    const user_id = req.user.id;
+    return this.settingsService.update(user_id, dto);
   }
 
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateSettingsSetDto: UpdateSettingsSetDto) {
-    return this.settingsSetService.update(+id, updateSettingsSetDto);
-  }
-
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.settingsSetService.remove(+id);
+  // Может не нужно
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MAIN_ADMIN)
+  @Delete('me')
+  async remove(@Req() req: RequestWithUser) {
+    const user_id = req.user.id;
+    return this.settingsService.remove(user_id);
   }
 }

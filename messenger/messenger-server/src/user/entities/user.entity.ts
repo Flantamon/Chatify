@@ -28,7 +28,7 @@ export class User {
   @Column('varchar', { length: 100 })
   email: string;
 
-  @Column('varchar', { length: 255 })
+  @Column('varchar', { length: 255, select: false })
   password: string;
 
   @OneToOne(() => SettingsSet, (settingsSet) => settingsSet.user)

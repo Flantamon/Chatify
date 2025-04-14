@@ -1,4 +1,11 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateContactDto } from './create-contact.dto';
+import { IsNumber, IsOptional } from 'class-validator';
 
-export class UpdateContactDto extends PartialType(CreateContactDto) {}
+export class UpdateContactDto {
+  @IsOptional()
+  @IsNumber()
+  ownerUserId?: number;
+
+  @IsOptional()
+  @IsNumber()
+  contactUserId?: number;
+}
