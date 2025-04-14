@@ -16,4 +16,8 @@ export class CreateUserDto {
   @IsOptional()
   @IsString()
   role?: 'user' | 'admin' = 'user';
+
+  @IsString()
+  @IsOptional()
+  status?: 'active' | 'blocked' = 'active';
 }

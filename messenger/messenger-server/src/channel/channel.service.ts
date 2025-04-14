@@ -1,26 +1,43 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Channel } from './entities/channel.entity';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @Injectable()
 export class ChannelService {
-  create(createChannelDto: CreateChannelDto) {
-    return 'This action adds a new channel';
+  constructor(
+    @InjectRepository(Channel)
+    private readonly channelRepository: Repository<Channel>,
+  ) {}
+
+  async create(dto: CreateChannelDto): Promise<Channel> {
+    const channel = this.channelRepository.create(dto);
+    return this.channelRepository.save(channel);
   }
 
-  findAll() {
-    return `This action returns all channel`;
+  async findAll(): Promise<Channel[]> {
+    return this.channelRepository.find({ relations: ['messages'] });
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} channel`;
+  async findOne(id: number): Promise<Channel> {
+    const channel = await this.channelRepository.findOne({
+      where: { id },
+      relations: ['messages'],
+    });
+    if (!channel) throw new NotFoundException(`Channel #${id} not found`);
+    return channel;
   }
 
-  update(id: number, updateChannelDto: UpdateChannelDto) {
-    return `This action updates a #${id} channel`;
+  async update(id: number, dto: UpdateChannelDto): Promise<Channel> {
+    const channel = await this.findOne(id);
+    Object.assign(channel, dto);
+    return this.channelRepository.save(channel);
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} channel`;
+  async remove(id: number): Promise<void> {
+    const channel = await this.findOne(id);
+    await this.channelRepository.remove(channel);
   }
 }

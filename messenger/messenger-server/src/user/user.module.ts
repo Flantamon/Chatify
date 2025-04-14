@@ -6,6 +6,7 @@ import { UserController } from './user.controller';
 import { UserRepository } from './user.repository';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { SettingsSetModule } from 'src/settings-set/settings-set.module';
 
 @Module({
   imports: [
@@ -18,9 +19,10 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       }),
       inject: [ConfigService],
     }),
+    SettingsSetModule,
   ],
   controllers: [UserController],
   providers: [UserService],
-  exports: [UserService],
+  exports: [TypeOrmModule.forFeature([User]), UserService],
 })
 export class UserModule {}
