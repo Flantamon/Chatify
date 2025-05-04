@@ -4,21 +4,18 @@ import { AppService } from './app.service';
 import { UserModule } from './user/user.module';
 import { MessageModule } from './message/message.module';
 import { ContactModule } from './contact/contact.module';
-import { SettingsSetModule } from './settings-set/settings-set.module';
 import { ChannelModule } from './channel/channel.module';
-import { UserStatisticsModule } from './user-statistics/user.statistics.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
+import { EventsGateway } from './events/events.gateway';
 import configFactory from './config';
 
 @Module({
   imports: [
     UserModule,
     AuthModule,
-    UserStatisticsModule,
     ChannelModule,
-    SettingsSetModule,
     ContactModule,
     MessageModule,
     ConfigModule.forRoot({
@@ -29,11 +26,16 @@ import configFactory from './config';
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) =>
-       configService.get('dbConfig') as any,
+      useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
+        const dbConfig = configService.get<TypeOrmModuleOptions>('dbConfig');
+        if (!dbConfig) {
+          throw new Error('Database configuration is not defined');
+        }
+        return dbConfig;
+      },
     }),
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, EventsGateway],
 })
 export class AppModule {}

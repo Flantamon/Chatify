@@ -1,4 +1,13 @@
-import { PartialType } from '@nestjs/mapped-types';
-import { CreateChannelDto } from './create-channel.dto';
+import { IsOptional, IsString, Length } from 'class-validator';
 
-export class UpdateChannelDto extends PartialType(CreateChannelDto) {}
+export class UpdateChannelDto {
+  @IsOptional()
+  @IsString()
+  @Length(1, 45)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  @Length(1, 45)
+  tag?: string;
+}

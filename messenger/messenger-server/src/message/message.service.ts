@@ -64,6 +64,14 @@ export class MessageService {
     return message;
   }
 
+  async getUserMessages(userId: number): Promise<Message[]> {
+    return this.messageRepository.find({
+      where: [{ sender: { id: userId } }, { receiverUser: { id: userId } }],
+      relations: ['sender', 'receiverUser', 'receiverChannel'],
+      order: { created_at: 'DESC' },
+    });
+  }
+
   async update(
     id: number,
     updateMessageDto: UpdateMessageDto,
@@ -73,48 +81,9 @@ export class MessageService {
     return this.messageRepository.save(message);
   }
 
-  async remove(id: number): Promise<void> {
+  async remove(id: number): Promise<Message> {
     const message = await this.findOne(id);
     await this.messageRepository.remove(message);
-  }
-
-  async getUserMessages(userId: number): Promise<Message[]> {
-    return this.messageRepository.find({
-      where: [{ sender: { id: userId } }, { receiverUser: { id: userId } }],
-      relations: ['sender', 'receiverUser', 'receiverChannel'],
-      order: { created_at: 'DESC' },
-    });
-  }
-
-  async getConversation(user1Id: number, user2Id: number): Promise<Message[]> {
-    return this.messageRepository.find({
-      where: [
-        { sender: { id: user1Id }, receiverUser: { id: user2Id } },
-        { sender: { id: user2Id }, receiverUser: { id: user1Id } },
-      ],
-      relations: ['sender', 'receiverUser'],
-      order: { created_at: 'ASC' },
-    });
-  }
-
-  async findBySender(senderId: number) {
-    return await this.messageRepository.find({
-      where: { sender: { id: senderId } },
-      relations: ['sender', 'receiverUser', 'receiverChannel'],
-    });
-  }
-
-  async findByReceiverUser(receiverUserId: number) {
-    return await this.messageRepository.find({
-      where: { receiverUser: { id: receiverUserId } },
-      relations: ['sender', 'receiverUser'],
-    });
-  }
-
-  async findByChannel(receiverChannelId: number) {
-    return await this.messageRepository.find({
-      where: { receiverChannel: { id: receiverChannelId } },
-      relations: ['sender', 'receiverChannel'],
-    });
+    return message;
   }
 }

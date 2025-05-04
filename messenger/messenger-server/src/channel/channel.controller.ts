@@ -28,7 +28,7 @@ export class ChannelController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
+  @Roles(UserRole.USER, UserRole.ADMIN)
   @Get()
   findAll() {
     return this.channelService.findAll();
@@ -36,9 +36,16 @@ export class ChannelController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  @Get(':id')
+  @Get('id/:id')
   findOne(@Param('id') id: string) {
     return this.channelService.findOne(+id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.USER, UserRole.ADMIN)
+  @Get('tag/:tag')
+  findByTag(@Param('tag') tag: string) {
+    return this.channelService.findByTag(tag);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
