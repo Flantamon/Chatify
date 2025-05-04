@@ -3,16 +3,13 @@ import {
   Get,
   Post,
   Body,
-  Patch,
   Param,
   Delete,
   UseGuards,
   Req,
-  Query,
 } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
-import { UpdateContactDto } from './dto/update-contact.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RequestWithUser } from 'src/shared/interfaces/user-request.interface';
 import { RolesGuard } from 'src/shared/guards/roles.guard';
@@ -35,10 +32,10 @@ export class ContactController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.USER)
   @Get()
-  findAll() {
-    return this.contactService.findAll();
+  async findAll(@Req() req: RequestWithUser) {
+    return this.contactService.findAll(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -50,49 +47,8 @@ export class ContactController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER)
-  @Patch(':id')
-  update(@Param('id') id: string, @Body() updateContactDto: UpdateContactDto) {
-    return this.contactService.update(+id, updateContactDto);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.contactService.remove(+id);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
-  @Get('user/me')
-  getMyContacts(@Req() req: RequestWithUser) {
-    return this.contactService.getUserContacts(req.user.id);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
-  @Get('user/search')
-  searchContacts(
-    @Req() req: RequestWithUser,
-    @Query('search') search: string,
-    @Query('page') page = 1,
-    @Query('limit') limit = 10,
-  ) {
-    return this.contactService.searchContacts(
-      req.user.id,
-      search,
-      +page,
-      +limit,
-    );
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get('between-users/:userId')
-  getContactBetweenUsers(
-    @Param('userId') userId: string,
-    @Req() req: RequestWithUser,
-  ) {
-    return this.contactService.findContactBetweenUsers(req.user.id, +userId);
   }
 }

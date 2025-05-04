@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 /* eslint-disable @typescript-eslint/no-unsafe-argument */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
@@ -34,11 +33,5 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   getProfile(@Request() req) {
     return req.user;
-  }
-
-  @Post('logout')
-  @UseGuards(LocalAuthGuard)
-  async logout(@Request() req) {
-    return await req.logout();
   }
 }

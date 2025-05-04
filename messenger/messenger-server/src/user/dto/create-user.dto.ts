@@ -20,4 +20,12 @@ export class CreateUserDto {
   @IsString()
   @IsOptional()
   status?: 'active' | 'blocked' = 'active';
+
+  @IsString()
+  @IsOptional()
+  theme?: 'dark' | 'light' | 'system' = 'system';
+
+  @IsString()
+  @IsOptional()
+  language?: 'en' | 'ru' = 'en';
 }

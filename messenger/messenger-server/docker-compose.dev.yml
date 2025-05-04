@@ -35,7 +35,7 @@ services:
     environment:
       PG_HOST: postgres
     ports:
-      - "${HTTP_PORT}:${HTTP_PORT}"
+      - "${HTTPS_PORT}:${HTTPS_PORT}"
       - "9229:9229"
     volumes:
       - .:/app
