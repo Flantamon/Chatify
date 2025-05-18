@@ -1,40 +1,150 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext, createContext } from 'react';
 import ContactsList from './components/ContactsList';
 import ChannelsList from './components/ChannelsList';
 import ChatWindow from './components/ChatWindow';
 import ProfileSettings from './components/ProfileSettings';
 import Login from './components/Login';
 import Register from './components/Register';
+import ContextMenu from './components/ContextMenu';
 import './App.css';
-import { getToken } from './utils/auth';
+import { getToken, getUserIdFromToken, isTokenExpired, removeToken } from './utils/auth';
+
+// Создаем контекст для темы и языка
+const SettingsContext = createContext();
+
+export const useSettings = () => useContext(SettingsContext);
 
 function App() {
   const [activeTab, setActiveTab] = useState('contacts');
   const [activeChat, setActiveChat] = useState(null);
   const [isProfileOpen, setProfileOpen] = useState(false);
-  const [theme, setTheme] = useState('light'); 
-  const [language, setLanguage] = useState('en'); 
-  const [isLoggedIn, setIsLoggedIn] = useState(false); 
-  const [isAddContactModalOpen, setAddContactModalOpen] = useState(false); 
-  const [contacts, setContacts] = useState([]); 
-  const [selectedContacts, setSelectedContacts] = useState([]); 
+  const [isLoggedIn, setIsLoggedIn] = useState(!!getToken() && !isTokenExpired());
+  const [isAddContactModalOpen, setAddContactModalOpen] = useState(false);
+  const [contacts, setContacts] = useState([]);
+  const [selectedContacts, setSelectedContacts] = useState([]);
   const [contextMenu, setContextMenu] = useState({ visible: false, x: 0, y: 0, contactId: null });
-  const [searchTerm, setSearchTerm] = useState(''); 
-  const [refreshContacts, setRefreshContacts] = useState(true); 
+  const [searchTerm, setSearchTerm] = useState('');
+  const [refreshContacts, setRefreshContacts] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [filteredContacts, setFilteredContacts] = useState([]);
+  const { theme, language, setTheme, setLanguage } = useSettings();
 
   useEffect(() => {
-    const token = getToken();
-    if (token) {
-      setIsLoggedIn(true);
-    }
+    const checkAuth = () => {
+      if (isTokenExpired()) {
+        handleLogout();
+      }
+    };
+
+    checkAuth();
+    const interval = setInterval(checkAuth, 60000); // Проверка каждую минуту
+
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
+    if (!isLoggedIn) return;
+
     const fetchSettings = async () => {
       try {
+        setLoading(true);
         const token = getToken();
-        const response = await fetch('http://localhost:3001/user/settings', {
+        if (isTokenExpired(token)) {
+          handleLogout();
+          return;
+        }
+
+        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch settings');
+        }
+
+        const settings = await response.json();
+        setTheme(settings[0]?.theme || 'light');
+        setLanguage(settings[0]?.language || 'en');
+      } catch (error) {
+        setError(error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSettings();
+  }, [isLoggedIn, setTheme, setLanguage]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const loadContacts = async () => {
+      try {
+        setLoading(true);
+        const token = getToken();
+        if (isTokenExpired(token)) {
+          handleLogout();
+          return;
+        }
+
+        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        });
+
+        if (response.status === 401) {
+          handleLogout();
+          return;
+        }
+
+        if (!response.ok) {
+          throw new Error('Failed to fetch contacts');
+        }
+
+        const fetchedContacts = await response.json();
+        console.log('Fetched contacts:', fetchedContacts);
+        const currentUserId = getUserIdFromToken();
+        const validContact = fetchedContacts.find(contact => contact.contact.id !== currentUserId);
+
+        if (validContact) {
+          setActiveChat({ ...validContact.contact, type: 'contact' });
+        }
+
+        setContacts(fetchedContacts);
+      } catch (error) {
+        console.error('Error fetching contacts:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadContacts();
+  }, [isLoggedIn, refreshContacts]);
+
+  useEffect(() => {
+    const loadContacts = async () => {
+      if (searchTerm.length < 3) {
+        setContacts([]);
+        return;
+      }
+
+      try {
+        const token = getToken();
+        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users?searchTerm=${encodeURIComponent(searchTerm)}`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -43,40 +153,46 @@ function App() {
         });
 
         if (!response.ok) {
-          throw new Error('Failed to fetch settings');
+          throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        const settings = await response.json();
-        setTheme(settings[0]?.theme); // Set theme from server
-        setLanguage(settings[0]?.language); // Set language from server
+        const fetchedContacts = await response.json();
+        console.log(fetchedContacts);
+        setFilteredContacts(fetchedContacts);
       } catch (error) {
-        console.error('Error fetching settings:', error);
+        console.error('Error fetching contacts:', error);
+        setFilteredContacts([]);
       }
     };
 
-    if (isLoggedIn) {
-      fetchSettings(); // Call the function to fetch settings only if logged in
-    }
-  }, [isLoggedIn]); // Dependency on isLoggedIn
+    const debounceTimer = setTimeout(loadContacts, 300);
+    return () => clearTimeout(debounceTimer);
+  }, [searchTerm]);
 
   const handleLoginSuccess = () => {
-    setIsLoggedIn(true); // Update login status
+    setIsLoggedIn(true);
+    setRefreshContacts(prev => !prev);
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('accessToken'); // Remove token from localStorage
-    setIsLoggedIn(false); // Update login status
-    window.location.reload(); // Reload the page
+    removeToken();
+    setIsLoggedIn(false);
+    setActiveChat(null);
+    setError(null);
   };
 
   const handleSaveSettings = async (newTheme, newLanguage) => {
-    setTheme(newTheme);
-    setLanguage(newLanguage);
-
     try {
+      setLoading(true);
       const token = getToken();
-      const response = await fetch('http://localhost:3001/user/settings', {
-        method: 'PUT',
+      if (isTokenExpired(token)) {
+        handleLogout();
+        return;
+      }
+
+      const userId = getUserIdFromToken();
+      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users/${userId}`, {
+        method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json',
@@ -84,132 +200,131 @@ function App() {
         body: JSON.stringify({ theme: newTheme, language: newLanguage }),
       });
 
-      if (!response.ok) {
-        throw new Error('Failed to save settings');
+      if (response.status === 401) {
+        handleLogout();
+        return;
       }
 
-      console.log('Settings saved successfully');
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Failed to save settings: ${errorText}`);
+      }
+
+      setTheme(newTheme);
+      setLanguage(newLanguage);
     } catch (error) {
-      console.error('Error saving settings:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleAddContact = async () => {
-    try {
-      const token = getToken(); // Получаем токен для авторизации
+    if (!selectedContacts.length) return;
 
-      // Проходим по каждому выбранному контакту и отправляем отдельный запрос
-      for (const contactId of selectedContacts) {
-        const response = await fetch('http://localhost:3001/user/contacts', {
+    try {
+      setLoading(true);
+      const token = getToken();
+      if (isTokenExpired(token)) {
+        handleLogout();
+        return;
+      }
+
+      const promises = selectedContacts.map(async (contactId) => {
+        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
             'Content-Type': 'application/json',
           },
-          body: JSON.stringify({ userId: contactId }), // Отправляем объект с userId
+          body: JSON.stringify({ userId: contactId }),
         });
 
         if (!response.ok) {
-          throw new Error(`Failed to add contact with ID ${contactId}`);
+          throw new Error('Failed to add contact');
         }
 
-        console.log(`Контакт с ID ${contactId} успешно добавлен.`);
-      }
+        const addedContact = await response.json();
+        console.log('Added contact:', addedContact);
+      });
 
-      setAddContactModalOpen(false); // Закрываем модальное окно
-      setSelectedContacts([]); // Очищаем выбранные контакты
-      setRefreshContacts(!refreshContacts);
+      await Promise.all(promises);
+      setAddContactModalOpen(false);
+      setSelectedContacts([]);
+      setRefreshContacts(prev => !prev); // Обновление списка контактов
+      setSearchTerm('');
     } catch (error) {
-      console.error('Ошибка при добавлении контактов:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleDeleteContact = async (contactId) => {
-  try {
-    const response = await fetch('http://localhost:3001/user/contacts', {
-      method: 'DELETE',
-      headers: {
-        'Authorization': `Bearer ${getToken()}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId: contactId }),
-    });
+    try {
+      setLoading(true);
+      const token = getToken();
+      if (isTokenExpired(token)) {
+        handleLogout();
+        return;
+      }
 
-    if (response.ok) {
-      setRefreshContacts(!refreshContacts); // Обновляем список контактов
-      setContextMenu({ visible: false, x: 0, y: 0, contactId: null }); // Скрываем контекстное меню
-    }
+      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: contactId }),
+      });
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      if (response.ok) {
+        setRefreshContacts(prev => !prev);
+        setContextMenu({ visible: false, x: 0, y: 0, contactId: null });
+      }
     } catch (error) {
-      console.error('Error deleting contact:', error);
+      setError(error.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  // useEffect для загрузки контактов при изменении строки поиска
-  useEffect(() => {
-    const loadContacts = async () => {
-      if (searchTerm.length >= 3) { // Проверка на количество символов
-        try {
-          const token = getToken();
-          const response = await fetch(`http://localhost:3001/user/users/?searchTerm=${encodeURIComponent(searchTerm)}`, {
-            method: 'GET',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json',
-            },
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to fetch contacts');
-          }
-
-          const fetchedContacts = await response.json();
-          setContacts(fetchedContacts); // Обновляем состояние контактов
-        } catch (error) {
-          console.error('Error fetching contacts:', error);
-        }
-      }
-    };
-
-    loadContacts(); // Вызываем функцию загрузки контактов
-  }, [searchTerm]); // Зависимость от searchTerm
-
   const handleRegisterSuccess = () => {
-    setIsLoggedIn(true);
+    handleLoginSuccess();
+  };
+
+  const handleSearchChange = (e) => {
+    const value = e.target.value;
+    setSearchTerm(value);
   };
 
   return (
-    <div>
-      {!isLoggedIn && !isRegistering && (
-        <button onClick={() => setIsRegistering(true)} style={{ marginTop: "10px" }}>
-          Register
-        </button>
-      )}
-      {!isLoggedIn && isRegistering && (
-        <button onClick={() => setIsRegistering(false)} style={{ marginTop: "10px" }}>
-          Back to Login
-        </button>
-      )}
-      <div className={`app-container ${theme}`}>
-        {isLoggedIn ? (
-          <>
-            <div className="sidebar">
-              <div className="tabs">
-                <button
-                  className={activeTab === 'contacts' ? 'active' : ''}
-                  onClick={() => setActiveTab('contacts')}>
-                  {language === 'en' ? 'Contacts' : 'Контакты'}
-                </button>
-                <button
-                  className={activeTab === 'channels' ? 'active' : ''}
-                  onClick={() => setActiveTab('channels')}>
-                  {language === 'en' ? 'Channels' : 'Каналы'}
-                </button>
-              </div>
-              <div className="list-container">
-                {activeTab === 'contacts' ? (
-                  <>
-                  <ContactsList 
-                    onSelect={(chat) => setActiveChat({...chat, type: 'contact'})}
+    <SettingsContext.Provider value={{ theme, setTheme, language, setLanguage }}>
+      {isLoggedIn ? (
+        <div className={`app-container ${theme}`}>
+          <div className="sidebar" style={{ backgroundColor: theme === 'dark' ? '#333' : '#fff' }}>
+            <div className="tabs">
+              <button
+                className={activeTab === 'contacts' ? 'active' : ''}
+                onClick={() => setActiveTab('contacts')}>
+                {language === 'en' ? 'Contacts' : 'Контакты'}
+              </button>
+              <button
+                className={activeTab === 'channels' ? 'active' : ''}
+                onClick={() => setActiveTab('channels')}>
+                {language === 'en' ? 'Channels' : 'Каналы'}
+              </button>
+            </div>
+            <div className="list-container" style={{ backgroundColor: theme === 'dark' ? '#444' : '#f9f9f9' }}>
+              {activeTab === 'contacts' ? (
+                <>
+                  <ContactsList
+                    onSelect={(chat) => setActiveChat({ ...chat, type: 'contact' })}
                     refreshContacts={refreshContacts}
                     onContextMenu={(e, contactId) => {
                       e.preventDefault();
@@ -217,117 +332,149 @@ function App() {
                         visible: true,
                         x: e.clientX,
                         y: e.clientY,
-                        contactId: contactId
+                        contactId: contactId,
                       });
                     }}
                   />
                   {contextMenu.visible && (
-                    <div 
-                      className="context-menu"
-                      style={{
-                        position: 'fixed',
-                        top: contextMenu.y,
-                        left: contextMenu.x,
-                        zIndex: 1000
-                      }}
-                    >
-                      <button 
-                        onClick={() => handleDeleteContact(contextMenu.contactId)}
-                        className="context-menu-item"
-                      >
-                        {language === 'en' ? 'Delete' : 'Удалить'}
-                      </button>
-                    </div>
+                    <ContextMenu 
+                      x={contextMenu.x} 
+                      y={contextMenu.y} 
+                      onDelete={() => handleDeleteContact(contextMenu.contactId)} 
+                      theme={theme} 
+                      language={language} 
+                    />
                   )}
-                  <div 
+                  <div
                     style={{ display: contextMenu.visible ? 'block' : 'none' }}
                     onClick={() => setContextMenu({ visible: false, x: 0, y: 0, contactId: null })}
                     className="context-menu-overlay"
                   />
                 </>
-                  //<ContactsList onSelect={(chat) => setActiveChat({...chat, type: 'contact'})} refreshContacts={refreshContacts}/>
-                ) : (
-                  <ChannelsList onSelect={(chat) => setActiveChat({...chat, type: 'channel'})} />
-                )}
-              </div>
-              <div className="profile-buttons">
-                <button className="profile-button" onClick={() => setProfileOpen(true)}>
-                  {language === 'en' ? 'Profile' : 'Профиль'}
-                </button>
-                <button className="logout-button" onClick={handleLogout}>
-                  {language === 'en' ? 'Log Out' : 'Выйти'}
-                </button>
-                <button className="add-contact-button" onClick={() => { setAddContactModalOpen(true); }}>
-                  {language === 'en' ? 'Add Contact' : 'Добавить контакт'}
-                </button>
-              </div>
-            </div>
-
-            <div className="main">
-              {activeChat ? (
-                <ChatWindow chat={activeChat} theme={theme} />
               ) : (
-                <div className="placeholder">
-                  {language === 'en' ? 'Select a contact or channel to start chatting.' : 'Выберите контакт или канал для начала чата.'}
-                </div>
+                <ChannelsList onSelect={(chat) => setActiveChat({ ...chat, type: 'channel' })} />
               )}
             </div>
-
-            {isProfileOpen && (
-              <ProfileSettings
-                onClose={() => setProfileOpen(false)}
-                onSave={handleSaveSettings}
-                currentTheme={theme}
-                currentLanguage={language}
-              />
-            )}
-
-            {isAddContactModalOpen && (
-              <div className="modal">
-                <div className="modal-content">
-                  <span className="close" onClick={() => setAddContactModalOpen(false)}>&times;</span>
-                  <h2>{language === 'en' ? 'Add Contact' : 'Добавить контакт'}</h2>
-                  <input
-                    type="text"
-                    placeholder={language === 'en' ? 'Search contacts...' : 'Поиск контактов...'}
-                    value={searchTerm} // Устанавливаем значение из состояния
-                    onChange={(e) => setSearchTerm(e.target.value)} // Обработчик изменения
-                  />
-                  <ul>
-                    {contacts.map(contact => (
-                      <li key={contact.id}>
-                        <input
-                          type="checkbox"
-                          value={contact.user_id}
-                          onChange={(e) => {
-                            const id = parseInt(e.target.value);
-                            setSelectedContacts(prev => 
-                              e.target.checked 
-                                ? [...prev, id] 
-                                : prev.filter(contactId => contactId !== id)
-                            );
-                          }}
-                        />
-                        {contact.name}
-                      </li>
-                    ))}
-                  </ul>
-                  <button onClick={handleAddContact}>
-                    {language === 'en' ? 'Add Selected' : 'Добавить выбранные'}
-                  </button>
-                </div>
+            <div className="profile-buttons" style={{ backgroundColor: theme === 'dark' ? '#444' : '#f9f9f9' }}>
+              <button className="profile-button" onClick={() => setProfileOpen(true)}>
+                {language === 'en' ? 'Profile' : 'Профиль'}
+              </button>
+              <button className="add-contact-button" onClick={() => setAddContactModalOpen(true)}>
+                {language === 'en' ? 'Add Contact' : 'Добавить контакт'}
+              </button>
+            </div>
+          </div>
+  
+          <div className="main" style={{ backgroundColor: theme === 'dark' ? '#222' : '#fff' }}>
+            {activeChat ? (
+              <ChatWindow chat={activeChat} theme={theme} />
+            ) : (
+              <div className="placeholder">
+                {language === 'en' ? 'Select a contact or channel to start chatting.' : 'Выберите контакт или канал для начала чата.'}
               </div>
             )}
-          </>
-        ) : isRegistering ? (
-          <Register onRegisterSuccess={handleRegisterSuccess} />
-        ) : (
-          <Login onLoginSuccess={handleLoginSuccess} />
-        )}
-        
-      </div>
-    </div>
+          </div>
+  
+          {isProfileOpen && (
+            <ProfileSettings
+              onClose={() => setProfileOpen(false)}
+              onSave={handleSaveSettings}
+              currentTheme={theme}
+              currentLanguage={language}
+            >
+              <button className="logout-button" onClick={handleLogout}>
+                {language === 'en' ? 'Log Out' : 'Выйти'}
+              </button>
+            </ProfileSettings>
+          )}
+  
+          {isAddContactModalOpen && (
+            <div className="modal">
+              <div className="modal-content" style={{ background: theme === 'dark' ? 'var(--dark-modal-bg)' : 'var(--modal-bg)' }}>
+                <span className="close" onClick={() => setAddContactModalOpen(false)}>&times;</span>
+                <h2>{language === 'en' ? 'Add Contact' : 'Добавить контакт'}</h2>
+                <input
+                  type="text"
+                  placeholder={language === 'en' ? 'Search contacts...' : 'Поиск контактов...'}
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+                <ul>
+                  {filteredContacts.map(contact => (
+                    <li key={contact.id}>
+                      <input
+                        type="checkbox"
+                        value={contact.user_id}
+                        onChange={(e) => {
+                          const id = parseInt(e.target.value);
+                          setSelectedContacts(prev =>
+                            e.target.checked
+                              ? [...prev, id]
+                              : prev.filter(contactId => contactId !== id)
+                          );
+                        }}
+                      />
+                      {contact.name}
+                    </li>
+                  ))}
+                </ul>
+                <button onClick={handleAddContact}>
+                  {language === 'en' ? 'Add Selected' : 'Добавить выбранные'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="auth-page-container">
+          <div className="auth-wrapper">
+            {isRegistering ? (
+              <Register 
+                onRegisterSuccess={handleRegisterSuccess}
+                switchToLogin={() => setIsRegistering(false)}
+              />
+            ) : (
+              <Login 
+                onLoginSuccess={handleLoginSuccess}
+                switchToRegister={() => setIsRegistering(true)}
+              />
+            )}
+          </div>
+        </div>
+      )}
+  
+      {loading && (
+        <div className="loading-overlay">
+          <div className="loading-spinner"></div>
+        </div>
+      )}
+      {error && (
+        <div className="error-modal">
+          <div className="error-content">
+            <span className="close-error" onClick={() => setError(null)}>&times;</span>
+            <p>{error}</p>
+            <button onClick={() => setError(null)}>OK</button>
+          </div>
+        </div>
+      )}
+    </SettingsContext.Provider>
   );
 }
 
-export default App;
+// Компонент для управления настройками
+const SettingsProvider = ({ children }) => {
+  const [theme, setTheme] = useState('light');
+  const [language, setLanguage] = useState('en');
+
+  return (
+    <SettingsContext.Provider value={{ theme, language, setTheme, setLanguage }}>
+      {children}
+    </SettingsContext.Provider>
+  );
+};
+
+export default () => (
+  <SettingsProvider>
+    <App />
+  </SettingsProvider>
+);

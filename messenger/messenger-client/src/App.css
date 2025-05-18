@@ -17,17 +17,17 @@
 
 .sidebar {
   width: 300px;
-  border-right: 2px solid #ddd; /* Увеличена толщина границы */
+  border-right: 2px solid #ddd;
   display: flex;
   flex-direction: column;
-  justify-content: space-between; /* Кнопка профиля всегда внизу */
+  justify-content: space-between;
 }
 
 .tabs {
   display: flex;
   justify-content: space-between;
   padding: 10px;
-  border-bottom: 2px solid #ddd; /* Добавлена толщина границы */
+  border-bottom: 2px solid #ddd;
 }
 
 .tabs button {
@@ -37,11 +37,17 @@
   background: #f4f4f4;
   border: none;
   outline: none;
+  color: black; /* Default text color for light theme */
 }
 
 .tabs button.active {
   background: #007bff;
-  color: #fff;
+  color: #fff; /* Active button text color */
+}
+
+/* Dark theme styles */
+[data-theme='dark'] .tabs button {
+  color: white; /* Text color for dark theme */
 }
 
 .list-container {
@@ -50,14 +56,107 @@
   padding: 10px;
 }
 
-.contact-item, .channel-item {
-  padding: 10px;
-  border-bottom: 1px solid #ddd;
-  cursor: pointer;
+:root {
+  --channel-bg: #f4f4f4;
+  --channel-hover-bg: #e0e0e0;
+  --channel-text: #333;
+  --channel-border: #ddd;
+
+  --contact-bg: #f4f4f4;
+  --contact-hover-bg: #e0e0e0;
+  --contact-text: #333;
+  --contact-border: #ddd;
+
+  /* Light theme colors */
+  --button-bg: #007bff;
+  --button-bg-hover: #0056b3;
+  --input-border: #ccc;
+  --input-bg: #fff;
+  --modal-bg: white;
+  --profile-bg: white;
+  --text-color: #000;
+
+  /* Dark theme colors */
+  --dark-button-bg: #1976d2;
+  --dark-button-bg-hover: #1565c0;
+  --dark-input-border: #555;
+  --dark-input-bg: #444;
+  --dark-modal-bg: #2c2c2c;
+  --dark-profile-bg: #2c2c2c;
+  --dark-text-color: #fff;
 }
 
-.contact-item:hover, .channel-item:hover {
-  background: #f0f0f0;
+[data-theme='dark'] {
+  --channel-bg: #2a2a2a;
+  --channel-hover-bg: #3a3a3a;
+  --channel-text: #fff;
+  --channel-border: #444;
+
+  --contact-bg: #2a2a2a;
+  --contact-hover-bg: #3a3a3a;
+  --contact-text: #fff;
+  --contact-border: #444;
+}
+
+.channel-item {
+  padding: 12px 16px;
+  background-color: var(--channel-bg);
+  border-bottom: 1px solid var(--channel-border);
+  cursor: pointer;
+  color: var(--channel-text);
+  transition: background-color 0.2s ease;
+  border-left: 4px solid transparent;
+}
+
+.channel-item:hover {
+  background-color: var(--channel-hover-bg);
+  border-left: 4px solid #007bff;
+}
+
+.channel-item.active {
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+}
+
+[data-theme='dark'] .channel-item.active {
+  background-color: #0056b3;
+}
+
+.contacts-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--contact-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.contact-item {
+  padding: 12px 16px;
+  background-color: var(--contact-bg);
+  color: var(--contact-text);
+  border-bottom: 1px solid var(--contact-border);
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.contact-item:hover {
+  background-color: var(--contact-hover-bg);
+}
+
+.contact-item:last-child {
+  border-bottom: none;
+}
+
+.add-contact-button {
+  padding: 15px;
+  margin: 10px;
+  background: #007bff;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  align-self: center;
 }
 
 .context-menu {
@@ -94,13 +193,12 @@
 
 .profile-button {
   padding: 15px;
-  margin: 10px;
   background: #007bff;
   color: white;
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  align-self: center; /* Центрирует кнопку */
+  align-self: center;
 }
 
 .profile-button:hover {
@@ -112,76 +210,208 @@
   display: flex;
   flex-direction: column;
   background: #f9f9f9;
-  border-left: 2px solid #ddd; /* Увеличена толщина границы */
+  border-left: 2px solid #ddd;
 }
 
+/* Окно сообщений */
 .chat-window {
   display: flex;
   flex-direction: column;
-  height: 100%;
-  padding: 10px;
-  background: #f9f9f9;
+  height: 100vh;
+  max-height: 100%;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  padding: 16px;
+  box-sizing: border-box;
+}
+
+.chat-window.light {
+  --bg-color: #f9f9f9;
+  --text-color: #222;
+  --message-bg: #e6f0ff;
+  --message-sent-bg: #d1ffd6;
+  --border-color: #ccc;
 }
 
 .chat-window.dark {
-  background: #2c2c2c; /* Темный фон для чата */
-  color: #ffffff; /* Белый текст в темной теме */
+  --bg-color: #1e1e1e;
+  --text-color: #f1f1f1;
+  --message-bg: #2a2a2a;
+  --message-sent-bg: #144d32;
+  --border-color: #444;
+}
+
+h2 {
+  margin-bottom: 12px;
+  font-size: 20px;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 8px;
 }
 
 .messages {
-  flex: 1;
+  flex-grow: 1;
   overflow-y: auto;
-  margin-bottom: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 6px;
+  margin-bottom: 12px;
 }
 
 .message {
-  margin-bottom: 10px;
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  line-height: 1.4;
+  word-wrap: break-word;
+  position: relative;
+  transition: background-color 0.3s;
 }
 
-.input-area {
+.message.sent {
+  align-self: flex-end;
+  background-color: var(--message-sent-bg);
+  text-align: right;
+}
+
+.message.received {
+  align-self: flex-start;
+  background-color: var(--message-bg);
+}
+
+.message-header {
   display: flex;
-  gap: 10px;
+  justify-content: space-between;
+  font-size: 12px;
+  color: #888;
+  margin-bottom: 4px;
 }
 
-.input-area input {
-  flex: 1;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
+.message-text {
+  font-size: 14px;
+  margin-bottom: 4px;
 }
 
-.input-area input.dark {
-  background-color: #555;
-  color: white;
-  border-color: #888;
+.message-file .file-info {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 13px;
+  margin-top: 6px;
 }
 
-.input-area button {
-  padding: 10px;
-  background: #007bff;
-  color: white;
+.file-name {
+  font-weight: bold;
+}
+
+.download-button {
+  background: transparent;
+  color: #007bff;
+  text-decoration: none;
+  font-size: 13px;
+}
+
+.message-input {
+  border-top: 1px solid var(--border-color);
+  padding-top: 8px;
+}
+
+.message-input input[type="text"] {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  font-size: 14px;
+}
+
+.message-input button {
+  padding: 8px 12px;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  background-color: #007bff;
+  color: white;
+  font-weight: bold;
+  transition: background-color 0.3s ease;
+}
+
+.message-input button:hover {
+  background-color: #0056b3;
+}
+
+.attach-file {
+  background-color: #e0e0e0;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   cursor: pointer;
 }
 
-.input-area button:hover {
+.selected-file {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #555;
+}
+
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.modal-content {
+  background: var(--modal-bg);
+  padding: 16px;
+  border-radius: 10px;
+  display: flex;
+  gap: 8px;
+  flex-direction: column;
+  width: 300px;
+}
+
+.modal-content input {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+.modal-content button {
+  padding: 8px;
+  font-weight: bold;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+}
+
+[data-theme='dark'] .modal-content {
+  background: var(--dark-modal-bg);
+}
+
+[data-theme='dark'] .modal-content input {
+  border: 1px solid #555;
+  background: #444;
+  color: #fff;
+}
+
+[data-theme='dark'] .modal-content button {
+  background: #007bff; 
+  color: white;
+}
+
+[data-theme='dark'] .modal-content button:hover {
   background: #0056b3;
-}
-
-.input-area .attach-button {
-  cursor: pointer;
-  padding: 10px;
-  background: #f4f4f4;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  display: inline-block;
-  margin-right: 5px;
-  text-align: center;
-}
-
-.input-area .attach-button:hover {
-  background: #e0e0e0;
 }
 
 /* Модальное окно настроек */
@@ -190,54 +420,75 @@
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 380px; /* Ширина уменьшена */
-  height: 500px; /* Высота увеличена */
-  background: white;
-  padding: 25px;
-  border-radius: 10px;
-  box-shadow: 0px 6px 15px rgba(0, 0, 0, 0.3);
+  width: 400px;
+  height: 300px;
+  background: var(--profile-bg);
+  padding: 30px;
+  border-radius: 12px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
   z-index: 1000;
+  overflow: hidden;
 }
 
 .profile-settings.dark {
-  background: #2c2c2c; /* Темный фон для настроек */
-  color: white; /* Белый текст в темной теме */
+  background: var(--dark-profile-bg); /* Темный фон для настроек */
+  color: var(--dark-text-color); /* Белый текст в темной теме */
 }
 
 .settings-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  overflow-y: auto; /* Чтобы контент не выходил за пределы */
+  gap: 24px;
+  max-height: 380px; /* Максимальная высота контента для прокрутки */
+  overflow-y: auto;
 }
 
 .setting-item {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
+  flex-direction: column;
 }
 
 .setting-item label {
-  margin-right: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.setting-item select {
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  font-size: 14px;
+  transition: border-color 0.3s;
+  background-color: #fff;
+}
+
+.setting-item select:focus {
+  border-color: #007bff; /* Активный цвет для выбора */
 }
 
 .settings-buttons {
   display: flex;
   justify-content: space-between;
-  gap: 10px;
+  gap: 15px;
+  margin-top: 20px;
 }
 
 .settings-buttons button {
-  padding: 10px 15px;
+  padding: 12px 20px;
   border: none;
   cursor: pointer;
-  border-radius: 5px;
+  border-radius: 8px;
   background: #007bff;
   color: white;
+  font-size: 16px;
+  font-weight: 500;
+  transition: background-color 0.3s, transform 0.3s;
 }
 
 .settings-buttons button:hover {
   background: #0056b3;
+  transform: translateY(-2px); /* Легкий эффект подъема кнопки */
 }
 
 .settings-buttons button.cancel {
@@ -247,16 +498,22 @@
 
 .settings-buttons button.cancel:hover {
   background: #e0e0e0;
+  transform: translateY(-2px);
 }
 
 /* Плейсхолдер */
 .placeholder {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
+  position: fixed;  /* Фиксируем элемент внизу экрана */
+  bottom: 0;
+  left: 0;
+  width: 100%;
   font-size: 18px;
   color: #888;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 10px;
+  background-color: #fff; /* Можно изменить на другой фон */
 }
 
 /* Обновление цвета текста для светлой и темной темы */
@@ -300,73 +557,80 @@
 .file-info {
     display: flex;
     align-items: center;
-    gap: 8px;
-    margin-bottom: 6px;
+    padding: 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background-color: #f9f9f9;
+    margin: 10px 0;
+    transition: background-color 0.3s, box-shadow 0.3s;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.file-info:hover {
+    background-color: #e9ecef;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
 
 .file-icon {
-    font-size: 20px;
+    font-size: 28px;
+    margin-right: 15px;
+    color: #007bff; /* Цвет иконки */
 }
 
 .file-name {
     flex-grow: 1;
-    font-size: 14px;
-    color: var(--text-primary);
-    word-break: break-all;
-    max-width: 200px;
+    font-weight: bold;
+    color: #333;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    font-size: 16px; /* Размер шрифта для имени файла */
 }
 
 .file-size {
-    font-size: 12px;
-    color: var(--text-secondary);
-    white-space: nowrap;
+    font-size: 14px;
+    color: #666;
+    margin-left: 15px;
 }
 
 .download-button {
-    display: inline-flex;
-    align-items: center;
-    padding: 4px 12px;
     background-color: #007bff;
     color: white;
     border: none;
-    border-radius: 4px;
+    border-radius: 5px;
+    padding: 8px 16px;
     cursor: pointer;
-    font-size: 13px;
-    text-decoration: none;
-    transition: background-color 0.2s;
+    transition: background-color 0.3s, transform 0.2s;
+    font-size: 14px; /* Размер шрифта для кнопки */
 }
 
 .download-button:hover {
     background-color: #0056b3;
+    transform: translateY(-2px); /* Эффект поднятия при наведении */
 }
 
-/* Стили для кнопки прикрепления файла */
-.attach-file {
-    background: none;
-    border: none;
-    font-size: 20px;
-    cursor: pointer;
-    padding: 0 8px;
-    opacity: 0.7;
-    transition: opacity 0.2s;
-    color: var(--text-primary);
+.download-button:active {
+    transform: translateY(0); /* Возврат к исходному положению при нажатии */
 }
 
-.attach-file:hover {
-    opacity: 1;
-}
-
-/* Модификация стилей сообщений для поддержки файлов */
-.message {
-    max-width: 70%;
-    margin: 8px;
+/* Стили для сообщений с файлами */
+.message-file {
+    margin-top: 8px;
     padding: 10px;
+    background-color: var(--bg-file);
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Стили для сообщений */
+.message {
+    width: 30%;
+    margin: 8px;
+    padding: 12px;
     border-radius: 8px;
     word-wrap: break-word;
     color: var(--text-primary);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .message.sent {
@@ -441,3 +705,290 @@
     background-color: #1565c0;
 }
 
+/* Video Call Styles */
+.video-call-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  max-width: 800px; /* Максимальная ширина окна видеозвонка */
+  max-height: 600px; /* Максимальная высота окна видеозвонка */
+  border: 1px solid #ccc; /* Граница для визуального отделения */
+  overflow: hidden; /* Скрыть переполнение */
+}
+
+.remote-video {
+  width: 100%; /* Ширина видео собеседника */
+  height: 100%; /* Высота видео собеседника */
+  object-fit: cover; /* Обеспечить обрезку видео */
+}
+
+.local-video {
+  position: absolute;
+  bottom: 10px; /* Отступ от нижней части */
+  right: 10px; /* Отступ от правой части */
+  width: 150px; /* Ширина локального видео */
+  height: 100px; /* Высота локального видео */
+  border: 2px solid white; /* Граница для локального видео */
+  border-radius: 5px; /* Закругление углов */
+}
+
+/* Auth Container Styles */
+.auth-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  background-color: #f5f5f5;
+  padding: 20px;
+}
+
+.auth-card {
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  padding: 40px;
+  width: 100%;
+  max-width: 450px;
+  transition: all 0.3s ease;
+}
+
+.auth-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 5px;
+  text-align: center;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: #666;
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.logout-button-container {
+  display: flex;
+  justify-content: center; 
+  margin-bottom: 20px;
+}
+
+.logout-button {
+  padding: 15px;
+  margin: 10px;
+  background: red;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  align-self: center;
+}
+
+.logout-button:hover {
+  background: darkred; /* Darker red on hover */
+}
+
+/* Form Styles */
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-size: 14px;
+  color: #555;
+  font-weight: 500;
+}
+
+.form-group input {
+  padding: 12px 15px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: border-color 0.3s;
+}
+
+.form-group input:focus {
+  border-color: #4a90e2;
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+
+/* Button Styles */
+.auth-button {
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.3s;
+  margin-top: 10px;
+}
+
+.auth-button:hover {
+  background-color: #3a7bc8;
+}
+
+.auth-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+}
+
+/* Footer Styles */
+.auth-footer {
+  text-align: center;
+  margin-top: 20px;
+  font-size: 14px;
+  color: #666;
+}
+
+.auth-link {
+  color: #4a90e2;
+  font-weight: 500;
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.auth-link:hover {
+  text-decoration: underline;
+}
+
+/* Error Message Styles */
+.auth-error {
+  background-color: #ffebee;
+  color: #d32f2f;
+  padding: 12px 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  border-left: 4px solid #d32f2f;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold; 
+  margin-top: 5px; 
+  font-size: 14px; 
+}
+
+/* Login Specific Styles */
+.auth-form .form-group input#login-email,
+.auth-form .form-group input#login-password {
+  padding: 12px 15px;
+}
+
+.auth-form .form-group label[for="login-email"],
+.auth-form .form-group label[for="login-password"] {
+  font-size: 14px;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 30px 20px;
+    width: 90%;
+  }
+  
+  .auth-title {
+    font-size: 24px;
+  }
+  
+  .auth-subtitle {
+    font-size: 13px;
+  }
+}
+
+/* Animation for Auth Cards */
+.auth-card {
+  animation: fadeInUp 0.5s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* General Button Styles */
+button {
+  background: var(--button-bg);
+  color: white;
+}
+
+button:hover {
+  background: var(--button-bg-hover);
+}
+
+/* Dark Theme Button Styles */
+[data-theme='dark'] button {
+  background: var(--dark-button-bg);
+}
+
+[data-theme='dark'] button:hover {
+  background: var(--dark-button-bg-hover);
+}
+
+/* Input Field Styles */
+input[type="text"] {
+  padding: 8px;
+  border: 1px solid var(--input-border);
+  border-radius: 6px;
+  background: var(--input-bg);
+}
+
+/* Dark Theme Input Field Styles */
+[data-theme='dark'] input[type="text"] {
+  border: 1px solid var(--dark-input-border);
+  background: var(--dark-input-bg);
+  color: var(--dark-text-color);
+}
+
+/* Modal and Profile Settings */
+.modal-content {
+  background: var(--modal-bg);
+}
+
+.profile-settings {
+  background: var(--profile-bg);
+}
+
+/* Dark Theme Modal and Profile Settings */
+[data-theme='dark'] .modal-content {
+  background: var(--dark-modal-bg);
+}
+
+[data-theme='dark'] .profile-settings {
+  background: var(--dark-profile-bg);
+  color: var(--dark-text-color);
+}
+
+video {
+  width: 400px;
+  height: 300px;
+  margin: 10px;
+  background-color: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}

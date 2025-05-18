@@ -43,6 +43,8 @@ export class ContactService {
       },
     });
 
+    console.log(existingContact);
+
     if (existingContact) {
       return existingContact;
     }
@@ -54,20 +56,14 @@ export class ContactService {
 
   async findAll(ownerId: number): Promise<Contact[]> {
     const contacts = await this.contactRepository.find({
-      where: [{ owner: { id: ownerId } }, { contact: { id: ownerId } }],
+      where: { owner: { id: ownerId } },
       relations: ['owner', 'contact'],
     });
+
     const uniqueContacts = contacts.filter(
-      (contact, index, self) =>
-        index ===
-        self.findIndex(
-          (c) =>
-            (c.owner.id === contact.owner.id &&
-              c.contact.id === contact.contact.id) ||
-            (c.owner.id === contact.contact.id &&
-              c.contact.id === contact.owner.id),
-        ),
+      (contact) => contact.contact.id !== ownerId,
     );
+
     return uniqueContacts;
   }
 

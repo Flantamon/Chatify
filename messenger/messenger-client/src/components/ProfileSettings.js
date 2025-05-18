@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
 
-const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage }) => {
-  // Для отслеживания изменений до сохранения
+const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage, children }) => {
   const [tempTheme, setTempTheme] = useState(currentTheme);
   const [tempLanguage, setTempLanguage] = useState(currentLanguage);
 
-  // Эффект для синхронизации при первом открытии
   useEffect(() => {
     setTempTheme(currentTheme);
     setTempLanguage(currentLanguage);
   }, [currentTheme, currentLanguage]);
 
   const handleSave = () => {
-    // Сохраняем изменения
     onSave(tempTheme || currentTheme, tempLanguage || currentLanguage);
-    onClose(); // Закрываем окно после сохранения
+    onClose();
   };
 
   const handleCancel = () => {
     setTempTheme(currentTheme);
     setTempLanguage(currentLanguage);
-    onClose(); // Закрываем окно без изменений
+    onClose();
   };
 
   return (
@@ -57,6 +54,11 @@ const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage }) => 
         <button className="cancel" onClick={handleCancel}>
           {currentLanguage === 'en' ? 'Cancel' : 'Отменить'}
         </button>
+      </div>
+
+      {/* Separate container for the logout button */}
+      <div className="logout-button-container">
+        {children} {/* Render the logout button here */}
       </div>
     </div>
   );

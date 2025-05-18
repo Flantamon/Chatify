@@ -15,7 +15,7 @@ export class CreateUserDto {
 
   @IsOptional()
   @IsString()
-  role?: 'user' | 'admin' = 'user';
+  role?: 'user' | 'admin';
 
   @IsString()
   @IsOptional()

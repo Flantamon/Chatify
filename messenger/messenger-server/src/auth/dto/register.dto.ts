@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 import {
   IsEmail,
   IsString,
@@ -6,9 +5,7 @@ import {
   MaxLength,
   Matches,
   IsNotEmpty,
-  IsEnum,
 } from 'class-validator';
-import { UserRole } from '../../shared/enums/user-role.enum';
 
 export class RegisterDto {
   @IsString()
@@ -31,8 +28,7 @@ export class RegisterDto {
   })
   password: string;
 
-  @IsEnum(UserRole, {
-    message: `Role must be one of: ${Object.values(UserRole).join(', ')}`,
-  })
-  role: UserRole = UserRole.USER;
+  // @IsOptional()
+  // @IsString()
+  // captcha?: string;
 }

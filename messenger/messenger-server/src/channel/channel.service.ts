@@ -41,6 +41,21 @@ export class ChannelService {
     return channel;
   }
 
+  async findAllWithPagination(
+    page: number,
+    limit: number,
+  ): Promise<{ channels: Channel[]; totalCount: number }> {
+    const [channels, total] = await this.channelRepository.findAndCount({
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      channels,
+      totalCount: total,
+    };
+  }
+
   async update(id: number, dto: UpdateChannelDto): Promise<Channel> {
     const channel = await this.findOne(id);
     Object.assign(channel, dto);

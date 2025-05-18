@@ -1,4 +1,12 @@
-import { IsOptional, IsIn, IsInt, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsIn,
+  IsInt,
+  Min,
+  Max,
+  IsString,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 import { UserRole } from '../../shared/enums/user-role.enum';
 
@@ -24,6 +32,10 @@ export class GetUsersQueryDto {
   roles?: UserRole[] | string;
 
   @IsOptional()
+  @IsString()
+  searchTerm?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Transform(({ value }: { value: string }) => parseInt(value, 10))
@@ -37,12 +49,10 @@ export class GetUsersQueryDto {
   limit?: number = 10;
 
   @IsOptional()
-  @IsIn(['true', 'false'])
-  @Transform(({ value }: { value: string }) => value === 'true')
+  @IsBoolean()
   countOnly?: boolean = false;
 
   @IsOptional()
-  @IsIn(['true', 'false'])
-  @Transform(({ value }: { value: string }) => value === 'true')
+  @IsBoolean()
   mostActiveOnly?: boolean = false;
 }

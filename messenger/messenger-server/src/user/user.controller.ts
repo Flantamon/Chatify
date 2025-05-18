@@ -12,16 +12,18 @@ import {
   UseGuards,
   ForbiddenException,
   Query,
+  HttpException,
+  HttpStatus,
 } from '@nestjs/common';
 import { UserService } from './user.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { Roles } from 'src/shared/decorators/roles.decorator';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
-import { RolesGuard } from 'src/auth/guards/roles.guard';
 import { UserRole } from 'src/shared/enums/user-role.enum';
 import { GetUsersQueryDto } from './dto/get-users-query';
 import { JwtPayload } from 'src/auth/interfaces/jwt-payload.interface';
+import { RolesGuard } from 'src/shared/guards/roles.guard';
 
 @Controller('users')
 export class UserController {
@@ -41,15 +43,64 @@ export class UserController {
     @Request() req: Request & { user: JwtPayload },
   ) {
     const currentUser = req.user;
+    const { page = 1, limit = 10 } = query;
 
-    if (
-      currentUser.role === UserRole.USER ||
-      currentUser.role === UserRole.ADMIN
-    ) {
-      return [await this.userService.findOneUser(currentUser.id)];
+    try {
+      if (query.searchTerm) {
+        return await this.userService.getUsersWithFilters(query);
+      }
+
+      if (currentUser.role === UserRole.MAIN_ADMIN) {
+        return await this.userService.findAllUsersWithPagination(page, limit);
+      }
+
+      if (currentUser.role === UserRole.ADMIN) {
+        return await this.userService.findAllUsersByRoleWithPagination(
+          UserRole.USER,
+          page,
+          limit,
+        );
+      }
+
+      if (currentUser.role === UserRole.USER) {
+        return [await this.userService.findOneUser(currentUser.id)];
+      }
+
+      return await this.userService.getUsersWithFilters(query);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      throw new HttpException(
+        'Error fetching users',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
     }
+  }
 
-    return this.userService.getUsersWithFilters(query);
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MAIN_ADMIN)
+  @Get('count')
+  async getUserCount() {
+    const count = await this.userService.countAllUsers();
+    return { count };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MAIN_ADMIN)
+  @Get('export')
+  async exportUsers() {
+    const users = await this.userService.findAllUsers();
+    return { exported: users };
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MAIN_ADMIN)
+  @Get('most-active')
+  async getMostActiveUsers(
+    @Request() req: any,
+    @Query('page') page: number = 1,
+    @Query('limit') limit: number = 10,
+  ) {
+    return await this.userService.findMostActiveUsers(page, limit);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -86,7 +137,11 @@ export class UserController {
       if (Object.keys(rest).length > 0) {
         throw new ForbiddenException('You can only update theme and language');
       }
-      return this.userService.updateUserSettings(userId, { theme, language });
+      return this.userService.updateUserSettings(
+        userId,
+        { theme, language },
+        role,
+      );
     }
 
     if (role === UserRole.ADMIN) {
@@ -106,14 +161,6 @@ export class UserController {
       }
       return this.userService.updateUserRole(userId, newRole, role);
     }
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MAIN_ADMIN)
-  @Get('export')
-  async exportUsers() {
-    const users = await this.userService.findAllUsers();
-    return { exported: users };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -10,6 +10,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { EventsGateway } from './events/events.gateway';
 import configFactory from './config';
+// import { WebRTCModule } from './webrtc/webrtc/webrtc.module';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import configFactory from './config';
     ChannelModule,
     ContactModule,
     MessageModule,
+    // WebRTCModule,
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
