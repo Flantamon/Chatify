@@ -3,10 +3,8 @@ import {
   Column,
   PrimaryGeneratedColumn,
   Unique,
-  OneToOne,
   OneToMany,
 } from 'typeorm';
-import { SettingsSet } from 'src/settings-set/entities/settings-set.entity';
 import { Contact } from 'src/contact/entities/contact.entity';
 import { Message } from 'src/message/entities/message.entity';
 
@@ -31,8 +29,11 @@ export class User {
   @Column('varchar', { length: 255, select: false })
   password: string;
 
-  @OneToOne(() => SettingsSet, (settingsSet) => settingsSet.user)
-  settingsSet: SettingsSet;
+  @Column('varchar', { length: 10 })
+  theme: string;
+
+  @Column('varchar', { length: 2 })
+  language: string;
 
   @OneToMany(() => Contact, (contact) => contact.owner)
   contactsAsOwner: Contact[];

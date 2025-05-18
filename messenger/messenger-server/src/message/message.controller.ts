@@ -53,6 +53,14 @@ export class MessageController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER)
+  @Get('user/me')
+  getMyMessages(@Request() req: RequestWithUser) {
+    console.log('Current user role:', req.user.role);
+    return this.messageService.getUserMessages(req.user.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.USER)
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateMessageDto: UpdateMessageDto) {
     return this.messageService.update(+id, updateMessageDto);
@@ -63,22 +71,5 @@ export class MessageController {
   @Delete(':id')
   remove(@Param('id') id: string) {
     return this.messageService.remove(+id);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
-  @Get('user/me')
-  getMyMessages(@Request() req: RequestWithUser) {
-    return this.messageService.getUserMessages(req.user.id);
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.USER)
-  @Get('conversation/:userId')
-  getConversation(
-    @Param('userId') userId: string,
-    @Request() req: RequestWithUser,
-  ) {
-    return this.messageService.getConversation(req.user.id, +userId);
   }
 }
