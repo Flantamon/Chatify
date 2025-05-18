@@ -8,19 +8,20 @@ import {
   Patch,
   Delete,
   Request,
+  Query,
+  BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
 import { MessageService } from './message.service';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { UpdateMessageDto } from './dto/update-message.dto';
-import { User } from 'src/user/entities/user.entity';
 import { RolesGuard } from 'src/shared/guards/roles.guard';
 import { Roles } from 'src/shared/decorators/roles.decorator';
 import { UserRole } from 'src/shared/enums/user-role.enum';
-
-interface RequestWithUser extends Request {
-  user: User;
-}
+import { FileInterceptor } from '@nestjs/platform-express';
+import { RequestWithUser } from 'src/shared/interfaces/user-request.interface';
 
 @UseGuards(JwtAuthGuard)
 @Controller('messages')
@@ -30,33 +31,64 @@ export class MessageController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER)
   @Post()
+  @UseInterceptors(FileInterceptor('file'))
   create(
+    @UploadedFile() file: Express.Multer.File,
     @Body() createMessageDto: CreateMessageDto,
     @Request() req: RequestWithUser,
   ) {
-    return this.messageService.create(createMessageDto, req.user.id);
-  }
+    console.log('Received file:', file);
+    console.log('Received DTO:', createMessageDto);
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get()
-  findAll() {
-    return this.messageService.findAll();
-  }
+    if (
+      !createMessageDto.receiverUserId &&
+      !createMessageDto.receiverChannelId
+    ) {
+      console.error(
+        'Missing receiverUserId or receiverChannelId in DTO:',
+        createMessageDto,
+      );
+    }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
-  @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.messageService.findOne(+id);
+    return this.messageService.create(createMessageDto, req.user.id, file);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER)
-  @Get('user/me')
-  getMyMessages(@Request() req: RequestWithUser) {
-    console.log('Current user role:', req.user.role);
-    return this.messageService.getUserMessages(req.user.id);
+  @Get()
+  findConversationMessages(
+    @Request() req: RequestWithUser,
+    @Query('receiverUserId') receiverUserId?: string,
+    @Query('receiverChannelId') receiverChannelId?: string,
+  ) {
+    const senderId = req.user.id;
+
+    if (receiverUserId && receiverChannelId) {
+      throw new BadRequestException(
+        'Provide either receiverUserId or receiverChannelId, not both.',
+      );
+    }
+    if (!receiverUserId && !receiverChannelId) {
+      throw new BadRequestException(
+        'Provide either receiverUserId or receiverChannelId.',
+      );
+    }
+
+    if (receiverUserId) {
+      return this.messageService.findConversationMessages(
+        senderId,
+        +receiverUserId,
+      );
+    } else {
+      return this.messageService.findChannelMessages(+receiverChannelId!);
+    }
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @Get('all')
+  findAllAdmin() {
+    return this.messageService.findAll();
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

@@ -5,7 +5,7 @@ import {
   Injectable,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, Not } from 'typeorm';
 import { User } from './entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import * as argon2 from 'argon2';
@@ -13,6 +13,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UserRole } from 'src/shared/enums/user-role.enum';
 import { BulkCreateResult } from 'src/shared/types/bulkCreateResult.type';
 import { GetUsersQueryDto } from './dto/get-users-query';
+import { UserPaginationResponse } from 'src/shared/interfaces/user-request.interface';
 
 @Injectable()
 export class UserService {
@@ -67,12 +68,69 @@ export class UserService {
     return await this.userRepository.find();
   }
 
+  async findAllUsersByRole(role: UserRole): Promise<User[]> {
+    return await this.userRepository.find({ where: { role } });
+  }
+
+  async findAllUsersWithPagination(
+    page: number,
+    limit: number,
+  ): Promise<UserPaginationResponse> {
+    const [users, total] = await this.userRepository.findAndCount({
+      where: { role: Not(UserRole.MAIN_ADMIN) },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      users,
+      totalCount: total,
+    };
+  }
+
+  async findAllUsersByRoleWithPagination(
+    role: UserRole,
+    page: number,
+    limit: number,
+  ): Promise<UserPaginationResponse> {
+    const [users, total] = await this.userRepository.findAndCount({
+      where: { role },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      users,
+      totalCount: total,
+    };
+  }
+
   async findOneUser(id: number): Promise<User> {
     const user = await this.userRepository.findOne({ where: { id } });
     if (!user) {
       throw new BadRequestException('User not found');
     }
     return user;
+  }
+
+  async findMostActiveUsers(
+    page: number,
+    limit: number,
+  ): Promise<UserPaginationResponse> {
+    const [users, total] = await this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.sentMessages', 'sentMessages')
+      .loadRelationCountAndMap('user.messageCount', 'user.sentMessages')
+      .where('user.role != :role', { role: UserRole.MAIN_ADMIN })
+      .orderBy('user.messageCount', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      users,
+      totalCount: total,
+    };
   }
 
   async removeUser(id: number): Promise<{ message: string }> {
@@ -132,7 +190,25 @@ export class UserService {
   async updateUserSettings(
     id: number,
     dto: { theme?: string; language?: string },
+    currentUserRole: UserRole,
   ): Promise<User> {
+    const targetUser = await this.userRepository.findOne({ where: { id } });
+
+    if (!targetUser) {
+      throw new BadRequestException('User not found');
+    }
+
+    const validThemes = ['light', 'dark'];
+    const validLanguages = ['en', 'ru'];
+
+    if (dto.theme && !validThemes.includes(dto.theme)) {
+      throw new BadRequestException('Invalid theme value');
+    }
+
+    if (dto.language && !validLanguages.includes(dto.language)) {
+      throw new BadRequestException('Invalid language value');
+    }
+
     await this.userRepository.update(id, dto);
     return this.userRepository.findOneByOrFail({ id });
   }
@@ -169,7 +245,14 @@ export class UserService {
     return targetUser;
   }
 
+  //TODO
   async getUsersWithFilters(query: GetUsersQueryDto) {
+    console.log('Query received in getUsersWithFilters:', query);
+
+    if (!query) {
+      throw new Error('Query is undefined');
+    }
+
     const {
       sortBy,
       sortDirection,
@@ -177,23 +260,20 @@ export class UserService {
       page = 1,
       limit = 10,
       countOnly,
-      mostActiveOnly,
+      searchTerm,
     } = query;
 
     console.log('Roles before transformation:', roles);
 
-    // Преобразуем роли в массив
     let parsedRoles: string[] = [];
-
-    // Если roles строка, то разделим по запятой
-    if (typeof roles === 'string') {
-      parsedRoles = roles.split(',').map((role) => role.trim());
-    } else if (Array.isArray(roles)) {
-      // Если roles массив, используем его как есть
-      parsedRoles = roles;
+    if (roles) {
+      if (typeof roles === 'string') {
+        parsedRoles = roles.split(',').map((role) => role.trim());
+      } else if (Array.isArray(roles)) {
+        parsedRoles = roles;
+      }
     }
 
-    // Проверка countOnly
     if (countOnly) {
       return this.userRepository.count(
         parsedRoles.length
@@ -202,48 +282,36 @@ export class UserService {
       );
     }
 
-    // Проверка для mostActiveOnly
-    if (mostActiveOnly) {
-      return this.findMostActiveUsers();
-    }
-
-    // Строим запрос для получения пользователей
     const queryBuilder = this.userRepository
       .createQueryBuilder('user')
       .leftJoinAndSelect('user.sentMessages', 'sentMessages')
       .loadRelationCountAndMap('user.messageCount', 'user.sentMessages');
 
-    // Фильтрация по ролям
     if (parsedRoles.length > 0) {
-      queryBuilder.where('user.role IN (:...roles)', { roles: parsedRoles });
+      queryBuilder.andWhere('user.role IN (:...roles)', { roles: parsedRoles });
     }
 
-    // Сортировка
-    if (sortBy === 'messages.count') {
-      queryBuilder.orderBy('user.messageCount', sortDirection);
-    } else if (sortBy) {
-      queryBuilder.orderBy(`user.${sortBy}`, sortDirection);
+    if (searchTerm) {
+      queryBuilder.andWhere('user.name LIKE :name', {
+        name: `%${searchTerm}%`,
+      });
     }
 
-    // Пагинация
+    if (sortBy) {
+      if (sortBy === 'messages.count') {
+        queryBuilder.orderBy('user.messageCount', sortDirection);
+      } else {
+        queryBuilder.orderBy(`user.${sortBy}`, sortDirection);
+      }
+    }
+
     queryBuilder.skip((page - 1) * limit).take(limit);
 
-    // Выполнение запроса
     return queryBuilder.getMany();
   }
 
-  async findMostActiveUsers() {
-    return this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.sentMessages', 'sentMessages')
-      .loadRelationCountAndMap('user.messageCount', 'user.sentMessages')
-      .orderBy('user.messageCount', 'DESC')
-      .limit(10)
-      .getMany();
-  }
-
-  async countAllUsers() {
-    return this.userRepository.count();
+  async countAllUsers(): Promise<number> {
+    return await this.userRepository.count({ where: { role: UserRole.USER } });
   }
 
   async bulkCreate(users: CreateUserDto[]): Promise<BulkCreateResult[]> {

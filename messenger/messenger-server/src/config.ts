@@ -1,5 +1,13 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 
+export type WebRTCConfig = {
+  iceServers: Array<{
+    urls: string;
+    username?: string;
+    credential?: string;
+  }>;
+};
+
 export type S3SettingsConfig = {
   awsAccessKey: string;
   awsSecretKey: string;
@@ -11,9 +19,9 @@ export type S3SettingsConfig = {
 export type Config = {
   dbConfig: TypeOrmModuleOptions;
   S3Config: S3SettingsConfig;
+  // webRTCConfig: WebRTCConfig;
 };
-console.log(process.env.PG_HOST);
-console.log(process.env.PG_DATABASE);
+
 export default (): Config => ({
   dbConfig: {
     type: 'postgres',
@@ -37,4 +45,16 @@ export default (): Config => ({
     awsS3Bucket: process.env.S3_BUCKET || '',
     awsS3Region: process.env.S3_REGION || '',
   },
+  // webRTCConfig: {
+  //   iceServers: [
+  //     {
+  //       urls: 'stun:stun.l.google.com:19302', // Публичный STUN-сервер от Google
+  //     },
+  //     {
+  //       urls: 'turn:turnserver.net:3478', // Публичный TURN-сервер
+  //       username: 'testuser', // Пример username
+  //       credential: 'testpassword', // Пример password
+  //     },
+  //   ],
+  // },
 });

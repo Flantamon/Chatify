@@ -7,6 +7,7 @@ import {
   Param,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import { ChannelService } from './channel.service';
 import { CreateChannelDto } from './dto/create-channel.dto';
@@ -30,8 +31,9 @@ export class ChannelController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER, UserRole.ADMIN)
   @Get()
-  findAll() {
-    return this.channelService.findAll();
+  async findAll(@Query() query: { page?: number; limit?: number }) {
+    const { page = 1, limit = 10 } = query;
+    return await this.channelService.findAllWithPagination(page, limit);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

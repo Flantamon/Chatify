@@ -52,3 +52,5 @@ Thumbs.db
 *.log
 .env
 .env.local
+
+messenger/messenger-server/uploads/*
