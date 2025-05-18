@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -22,31 +23,32 @@ export class ContactService {
     createContactDto: CreateContactDto,
     ownerId: number,
   ): Promise<Contact> {
-    if (ownerId === createContactDto.contactUserId) {
+    if (ownerId === createContactDto.userId) {
       throw new BadRequestException('Cannot add yourself as a contact');
     }
 
     const [owner, contactUser] = await Promise.all([
       this.userRepository.findOne({ where: { id: ownerId } }),
       this.userRepository.findOne({
-        where: { id: createContactDto.contactUserId },
+        where: { id: createContactDto.userId },
       }),
     ]);
 
     if (!owner) throw new NotFoundException('Owner user not found');
     if (!contactUser) throw new NotFoundException('Contact user not found');
 
+    console.log('owner: ', owner);
+    console.log('contact: ', contactUser);
+
     const existingContact = await this.contactRepository.findOne({
       where: {
         owner: { id: ownerId },
-        contact: { id: createContactDto.contactUserId },
+        contact: { id: createContactDto.userId },
       },
     });
 
-    console.log(existingContact);
-
     if (existingContact) {
-      return existingContact;
+      throw new ConflictException('Contact already exists');
     }
 
     return this.contactRepository.save(

@@ -4,6 +4,11 @@ import { getUserIdFromToken, getToken } from '../utils/auth';
 import io from 'socket.io-client';
 import VideoCall from './VideoCall';
 
+const newSocket = io(`wss://${process.env.REACT_APP_USER_CLIENT_HOST}`, {
+  transports: ['websocket'],
+  rejectUnauthorized: false
+});
+
 const ChatWindow = ({ chat, theme }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -53,10 +58,6 @@ const ChatWindow = ({ chat, theme }) => {
   }, [messages]);
 
   useEffect(() => {
-    const newSocket = io(`wss://${process.env.REACT_APP_USER_CLIENT_HOST}`, {
-      transports: ['websocket'],
-      rejectUnauthorized: false
-    });
     setSocket(newSocket);
 
     newSocket.on('connect', () => {
@@ -290,14 +291,13 @@ const ChatWindow = ({ chat, theme }) => {
     <div className={`chat-window ${theme}`} onClick={closeContextMenu}>
       <h2>{chat.name}</h2>
       <button onClick={startVideoCall}>
-        Начать видеозвонок 
+        Видеозвонок 
         <span role="img" aria-label="Video call"> 📞</span> 
       </button>
 
-      {showVideoCall && socket && roomId && (
+      {showVideoCall && socket && (
         <div className="video-call-wrapper">
-          <VideoCall socket={socket} roomId={roomId} />
-          <button onClick={handleResetVideoCall}>Завершить звонок</button>
+          <VideoCall socket={socket} onEndCall={() => setShowVideoCall(false)} />
         </div>
       )}
 

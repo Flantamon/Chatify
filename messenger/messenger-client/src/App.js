@@ -230,33 +230,149 @@ function App() {
         return;
       }
 
-      const promises = selectedContacts.map(async (contactId) => {
-        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ userId: contactId }),
-        });
-
-        if (!response.ok) {
-          throw new Error('Failed to add contact');
-        }
-
-        const addedContact = await response.json();
-        console.log('Added contact:', addedContact);
+      // Step 1: Fetch existing contacts
+      const existingContactsResponse = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
       });
 
-      await Promise.all(promises);
+      if (existingContactsResponse.status === 401) {
+        handleLogout();
+        setLoading(false); // Stop loading on logout
+        return;
+      }
+
+      if (!existingContactsResponse.ok) {
+        setLoading(false); // Stop loading on error
+        throw new Error('Failed to fetch existing contacts');
+      }
+
+      const existingContacts = await existingContactsResponse.json();
+      const existingContactIds = existingContacts.map(contact => contact.contact.id);
+
+      const contactsToAdd = [];
+      const alreadyExisting = [];
+      const failedToAdd = []; // Для отслеживания ошибок при добавлении новых
+
+      // Step 2: Separate contacts to add and already existing
+      selectedContacts.forEach(selectedId => {
+        if (existingContactIds.includes(selectedId)) {
+          const existingContact = filteredContacts.find(contact => contact.id === selectedId);
+          if (existingContact) {
+            alreadyExisting.push(existingContact.name);
+          } else {
+             alreadyExisting.push(`ID ${selectedId}`);
+          }
+        } else {
+          contactsToAdd.push(selectedId);
+        }
+      });
+
+      // Step 3: Inform the user if contacts already exist (optional, but good UX)
+      if (alreadyExisting.length > 0) {
+          const message = `${language === 'en' ? 'The following users were already in your contacts:' : 'Следующие пользователи уже были в ваших контактах:'} ${alreadyExisting.join(', ')}.`;
+          // We can set a message here, but continue to add the new ones
+          // setError(message); // Maybe combine messages later
+          console.log(message); // Log or handle this message
+      }
+
+      // Step 4: Proceed only with contacts that are not already existing
+      if (contactsToAdd.length === 0) {
+          // If no new contacts to add, just close modal and clear state
+          setAddContactModalOpen(false);
+          setSelectedContacts([]);
+          setSearchTerm('');
+          setLoading(false);
+          // If there were only existing contacts, show message now
+          if (alreadyExisting.length > 0) {
+               const message = `${language === 'en' ? 'All selected users were already in your contacts.' : 'Все выбранные пользователи уже были в ваших контактах.'}`;
+               setError(message);
+          }
+          return;
+      }
+
+      // Step 5: Send POST requests for new contacts
+      const promises = contactsToAdd.map(async (contactId) => {
+        try {
+          const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ userId: contactId }),
+          });
+
+          // Проверяем статус ответа
+          if (response.status === 409) {
+             // Контакт уже существует - это не ошибка добавления, а информационное сообщение
+             console.log(`Contact with ID ${contactId} already exists.`);
+             // Можно добавить его в список "уже существующих" для финального сообщения
+             const existingContact = filteredContacts.find(contact => contact.id === contactId);
+             if (existingContact && !alreadyExisting.includes(existingContact.name)) {
+                  alreadyExisting.push(existingContact.name);
+             } else if (!alreadyExisting.includes(`ID ${contactId}`)) {
+                  alreadyExisting.push(`ID ${contactId}`);
+             }
+             return; // Продолжаем выполнение Promise.all, но без обработки как ошибки
+          }
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`Failed to add contact ${contactId}: ${response.status} - ${errorText}`);
+            failedToAdd.push(`ID ${contactId}`); // Отслеживаем ошибки добавления
+            // Не выбрасываем исключение здесь, чтобы Promise.all завершился для всех запросов
+          } else {
+            const addedContact = await response.json();
+            console.log('Added contact:', addedContact); // Лог успешного добавления
+            // Возможно, здесь потребуется обновить локальное состояние контактов или полагаться на refreshContacts
+          }
+        } catch (error) {
+           console.error('Error during POST for contact', contactId, error);
+           failedToAdd.push(`ID ${contactId}`); // Отслеживаем ошибки запроса
+        }
+      });
+
+      await Promise.all(promises); // Ожидаем завершения всех POST запросов
+
+      // Step 6: Provide feedback based on results
+      let feedbackMessage = '';
+      if (alreadyExisting.length > 0) {
+          feedbackMessage += `${language === 'en' ? 'Some users were already in your contacts:' : 'Некоторые пользователи уже были в ваших контактах:'} ${alreadyExisting.join(', ')}. `;
+      }
+      if (failedToAdd.length > 0) {
+          feedbackMessage += `${language === 'en' ? 'Failed to add:' : 'Не удалось добавить:'} ${failedToAdd.join(', ')}. `;
+      }
+      if (alreadyExisting.length === 0 && failedToAdd.length === 0) {
+           feedbackMessage = `${language === 'en' ? 'Contacts added successfully.' : 'Контакты успешно добавлены.'}`;
+      } else if (contactsToAdd.length > 0 && failedToAdd.length === 0 && alreadyExisting.length === 0) {
+          // All selected and new were added successfully
+          feedbackMessage = `${language === 'en' ? 'Contacts added successfully.' : 'Контакты успешно добавлены.'}`;
+      } else if (contactsToAdd.length > 0 && failedToAdd.length === 0 && alreadyExisting.length > 0) {
+           // Some were new and added, some already existed
+           feedbackMessage += `${language === 'en' ? 'New contacts added successfully.' : 'Новые контакты успешно добавлены.'}`;
+      }
+
+
+      if (feedbackMessage) {
+          setError(feedbackMessage); // Use error state to show combined feedback
+      }
+
+
+      // Close modal and clear state after processing
       setAddContactModalOpen(false);
       setSelectedContacts([]);
       setRefreshContacts(prev => !prev); // Обновление списка контактов
       setSearchTerm('');
+
     } catch (error) {
-      setError(error.message);
+      console.error('Overall error adding contact:', error);
+      setError(error.message); // Show general error message
     } finally {
-      setLoading(false);
+      setLoading(false); // Ensure loading is stopped
     }
   };
 
@@ -404,7 +520,7 @@ function App() {
                     <li key={contact.id}>
                       <input
                         type="checkbox"
-                        value={contact.user_id}
+                        value={contact.id}
                         onChange={(e) => {
                           const id = parseInt(e.target.value);
                           setSelectedContacts(prev =>

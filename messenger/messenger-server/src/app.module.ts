@@ -8,7 +8,6 @@ import { ChannelModule } from './channel/channel.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
-import { EventsGateway } from './events/events.gateway';
 import configFactory from './config';
 // import { WebRTCModule } from './webrtc/webrtc/webrtc.module';
 
@@ -38,6 +37,6 @@ import configFactory from './config';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, EventsGateway],
+  providers: [AppService],
 })
 export class AppModule {}
