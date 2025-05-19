@@ -6,10 +6,11 @@ import { Message } from './entities/message.entity';
 import { Channel } from 'src/channel/entities/channel.entity';
 import { User } from 'src/user/entities/user.entity';
 import { EventsGateway } from 'src/events/events.gateway';
+import { UploadsController } from './uploads.controller';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Message, User, Channel])],
-  controllers: [MessageController],
+  controllers: [MessageController, UploadsController],
   providers: [MessageService, EventsGateway],
   exports: [MessageService],
 })

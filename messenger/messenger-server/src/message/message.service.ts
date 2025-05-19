@@ -177,4 +177,11 @@ export class MessageService {
       order: { created_at: 'ASC' },
     });
   }
+
+  async findMessageByFileName(fileName: string): Promise<Message | null> {
+    return this.messageRepository.findOne({
+      where: { fileUrl: `/uploads/messages/${fileName}` },
+      relations: ['sender', 'receiverUser', 'receiverChannel'],
+    });
+  }
 }

@@ -256,15 +256,15 @@ const ChatWindow = ({ chat, theme }) => {
 
       {message.text && <div className="message-text">{message.text}</div>}
 
-      {message.file_url && (
+      {message.fileUrl && (
         <div className="message-file">
           <div className="file-info">
-            <span className="file-icon">{getFileIcon(message.file_type)}</span>
-            <span className="file-name" title={message.file_name}>{message.file_name}</span>
-            <span className="file-size">{formatFileSize(message.file_size)}</span>
+            <span className="file-icon">{getFileIcon(message.fileType)}</span>
+            <span className="file-name" title={message.fileName}>{message.fileName}</span>
+            <span className="file-size">{formatFileSize(message.fileSize)}</span>
             <a
-              href={`https://${process.env.REACT_APP_USER_CLIENT_HOST}/${message.file_url}`}
-              download={message.file_name}
+              href={`https://${process.env.REACT_APP_USER_CLIENT_HOST}${message.fileUrl}`}
+              download={message.fileName}
               className="download-button"
             >
               Скачать
