@@ -9,7 +9,7 @@ const newSocket = io(`wss://${process.env.REACT_APP_USER_CLIENT_HOST}`, {
   rejectUnauthorized: false
 });
 
-const ChatWindow = ({ chat, theme }) => {
+const ChatWindow = ({ chat, theme, language }) => {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [editingMessage, setEditingMessage] = useState(null);
@@ -290,10 +290,10 @@ const ChatWindow = ({ chat, theme }) => {
   return (
     <div className={`chat-window ${theme}`} onClick={closeContextMenu}>
       <h2>{chat.name}</h2>
-      <button onClick={startVideoCall}>
+      {chat.type === 'contact' && <button onClick={startVideoCall}>
         Видеозвонок 
         <span role="img" aria-label="Video call"> 📞</span> 
-      </button>
+      </button>}
 
       {showVideoCall && socket && (
         <div className="video-call-wrapper">
@@ -311,6 +311,8 @@ const ChatWindow = ({ chat, theme }) => {
           y={contextMenu.y}
           onDelete={handleDelete}
           onEdit={handleEdit}
+          language={language}
+          resourse='message'
         />
       )}
 

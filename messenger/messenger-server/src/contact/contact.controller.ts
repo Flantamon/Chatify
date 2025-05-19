@@ -7,6 +7,7 @@ import {
   Delete,
   UseGuards,
   Req,
+  Request,
 } from '@nestjs/common';
 import { ContactService } from './contact.service';
 import { CreateContactDto } from './dto/create-contact.dto';
@@ -47,8 +48,11 @@ export class ContactController {
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.USER)
-  @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.contactService.remove(+id);
+  @Delete()
+  remove(
+    @Body() removeContactDto: CreateContactDto,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.contactService.remove(removeContactDto.userId, req.user.id);
   }
 }

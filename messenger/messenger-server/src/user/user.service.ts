@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   BadRequestException,
@@ -14,6 +15,11 @@ import { UserRole } from 'src/shared/enums/user-role.enum';
 import { BulkCreateResult } from 'src/shared/types/bulkCreateResult.type';
 import { GetUsersQueryDto } from './dto/get-users-query';
 import { UserPaginationResponse } from 'src/shared/interfaces/user-request.interface';
+
+interface RawUserCountResult {
+  userId: number;
+  messageCountAlias: string; // Or number, depending on how COUNT is returned by the DB driver
+}
 
 @Injectable()
 export class UserService {
@@ -113,24 +119,22 @@ export class UserService {
     return user;
   }
 
-  async findMostActiveUsers(
-    page: number,
-    limit: number,
-  ): Promise<UserPaginationResponse> {
-    const [users, total] = await this.userRepository
-      .createQueryBuilder('user')
-      .leftJoinAndSelect('user.sentMessages', 'sentMessages')
-      .loadRelationCountAndMap('user.messageCount', 'user.sentMessages')
-      .where('user.role != :role', { role: UserRole.MAIN_ADMIN })
-      .orderBy('user.messageCount', 'DESC')
-      .skip((page - 1) * limit)
-      .take(limit)
-      .getManyAndCount();
+  async findMostActiveUsers(page: number, limit: number): Promise<any> {
+    // Adjust the return type as needed
+    const offset = (page - 1) * limit;
 
-    return {
-      users,
-      totalCount: total,
-    };
+    const rawResult = await this.userRepository.query(
+      `
+    SELECT u.id, u.role, u.status, u.name, u.email, 
+           (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id) AS max_messages 
+    FROM users u
+    ORDER BY max_messages DESC 
+    LIMIT $1 OFFSET $2
+  `,
+      [limit, offset],
+    );
+
+    return rawResult;
   }
 
   async removeUser(id: number): Promise<{ message: string }> {

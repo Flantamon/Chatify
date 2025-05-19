@@ -79,8 +79,19 @@ export class ContactService {
     return contact;
   }
 
-  async remove(id: number): Promise<Contact> {
-    const contact = await this.findOne(id);
+  async remove(contactUserId: number, ownerUserId: number): Promise<Contact> {
+    const contact = await this.contactRepository.findOne({
+      where: {
+        owner: { id: ownerUserId },
+        contact: { id: contactUserId },
+      },
+      relations: ['owner', 'contact'],
+    });
+
+    if (!contact) {
+      throw new NotFoundException('Contact not found');
+    }
+
     await this.contactRepository.remove(contact);
     return contact;
   }

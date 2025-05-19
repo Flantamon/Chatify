@@ -459,6 +459,7 @@ function App() {
                       onDelete={() => handleDeleteContact(contextMenu.contactId)} 
                       theme={theme} 
                       language={language} 
+                      resourse='contact'
                     />
                   )}
                   <div
@@ -483,7 +484,7 @@ function App() {
   
           <div className="main" style={{ backgroundColor: theme === 'dark' ? '#222' : '#fff' }}>
             {activeChat ? (
-              <ChatWindow chat={activeChat} theme={theme} />
+              <ChatWindow chat={activeChat} theme={theme} language={language} />
             ) : (
               <div className="placeholder">
                 {language === 'en' ? 'Select a contact or channel to start chatting.' : 'Выберите контакт или канал для начала чата.'}

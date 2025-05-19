@@ -20,7 +20,7 @@ const MainAdminDashboard = () => {
   const fetchAllUsers = useCallback(async () => {
     console.log('Fetching all users with headers:', headers);
     try {
-      const response = await fetch(`${API_BASE}`, { headers });
+      const response = await fetch(`${API_BASE}?page=${currentPage}&limit=${limit}`, { headers });
       if (!response.ok) {
         throw new Error(`Ошибка при получении всех пользователей: ${response.status} ${response.statusText}`);
       }
@@ -35,7 +35,7 @@ const MainAdminDashboard = () => {
       console.error('Ошибка при получении всех пользователей:', error);
       setUsers([]);
     }
-  }, [headers, API_BASE]);
+  }, [currentPage, limit, headers, API_BASE]);
 
   const fetchUserCount = useCallback(async () => {
     console.log('Fetching user count with headers:', headers);
@@ -55,13 +55,13 @@ const MainAdminDashboard = () => {
   const fetchMostActiveUsers = useCallback(async () => {
     console.log('Fetching most active users with headers:', headers);
     try {
-      const response = await fetch(`${API_BASE}/most-active?page=${currentPage}&limit=${limit}`, { headers });
+      const response = await fetch(`${API_BASE}/most-active?limit=10`, { headers });
       if (!response.ok) {
         throw new Error(`Ошибка при получении наиболее активных пользователей: ${response.status} ${response.statusText}`);
       }
       const data = await response.json();
-      if (data && Array.isArray(data.users)) {
-        setMostActiveUsers(data.users);
+      if (data) {
+        setMostActiveUsers(data);
       } else {
         console.error('Не удалось получить наиболее активных пользователей: данные некорректны', data);
         setMostActiveUsers([]);
@@ -70,7 +70,7 @@ const MainAdminDashboard = () => {
       console.error('Ошибка при получении наиболее активных пользователей:', error);
       setMostActiveUsers([]);
     }
-  }, [currentPage, limit, headers, API_BASE]);
+  }, [headers, API_BASE]);
 
   useEffect(() => {
     fetchAllUsers();
@@ -143,8 +143,6 @@ const MainAdminDashboard = () => {
 
       <div className="total-users">
         <h3>Total Users: {totalUsers}</h3>
-        <button onClick={handleExport}>Export Users</button>
-        <button onClick={handleImport}>Import Users</button>
       </div>
 
       <div className="most-active-users-section">
@@ -167,7 +165,7 @@ const MainAdminDashboard = () => {
                   <td>{user.email}</td>
                   <td>{user.status}</td>
                   <td>{user.role}</td>
-                  <td>{user.messageCount}</td>
+                  <td>{user.max_messages}</td>
                 </tr>
               ))
             ) : (

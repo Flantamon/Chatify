@@ -23,7 +23,7 @@ const ChannelList = ({ onSelect }) => {
 
       if (!response.ok) throw new Error('Failed to fetch channels');
       const data = await response.json();
-      const channelsList = data.map(channel => ({
+      const channelsList = data.channels.map(channel => ({
         id: channel.id,
         name: channel.name,
       }));
@@ -118,33 +118,6 @@ const ChannelList = ({ onSelect }) => {
 
   return (
     <div className="channel-list">
-
-      {/* Create new channel (ADMIN only) */}
-      <div className="create-channel">
-        <input
-          type="text"
-          placeholder="New channel name"
-          value={newChannelName}
-          onChange={(e) => setNewChannelName(e.target.value)}
-        />
-        <input
-          type="text"
-          placeholder="Tag"
-          value={newChannelTag}
-          onChange={(e) => setNewChannelTag(e.target.value)}
-        />
-        <button onClick={handleCreateChannel}>Create Channel</button>
-      </div>
-
-      {/* Search by tag */}
-      <div className="search-channel">
-        <input
-          type="text"
-          placeholder="Search by tag"
-          value={searchTag}
-          onChange={(e) => setSearchTag(e.target.value)}
-        />
-      </div>
 
       {/* Channels display */}
       {filteredChannels.map((channel) => (

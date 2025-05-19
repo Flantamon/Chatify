@@ -1,6 +1,24 @@
 import React from 'react';
 
-const ContextMenu = ({ x, y, onDelete, onEdit, theme, language }) => {
+const deleteTexts = {
+  message: {
+    en: 'delete message',
+    ru: 'удалить сообщение'
+  },
+  contact: {
+    en: 'delete contact',
+    ru: 'удалить контакт'
+  }
+}
+
+const editTexts = {
+  message: {
+    en: 'edit message',
+    ru: 'изменить сообщение'
+  }
+}
+
+const ContextMenu = ({ x, y, onDelete, onEdit, theme, language, resourse }) => {
   const menuStyle = {
     position: 'fixed',
     left: x,
@@ -25,14 +43,16 @@ const ContextMenu = ({ x, y, onDelete, onEdit, theme, language }) => {
         onClick={onDelete} 
         style={itemStyle}
       >
-        {language === 'en' ? 'Delete Message' : 'Удалить сообщение'}
+        {deleteTexts[resourse][language]}
       </div>
-      <div 
-        onClick={onEdit} 
-        style={itemStyle}
-      >
-        {language === 'en' ? 'Edit Message' : 'Изменить сообщение'}
-      </div>
+      {resourse === 'message' && (
+                    <div 
+                    onClick={onEdit} 
+                    style={itemStyle}
+                  >
+                    {editTexts[resourse][language]}
+                  </div>
+                  )}
     </div>
   );
 };
