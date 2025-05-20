@@ -20,7 +20,6 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() registerDto: RegisterDto) {
-    // const captcha = registerDto.captcha || '';
     return this.authService.register(registerDto);
   }
 

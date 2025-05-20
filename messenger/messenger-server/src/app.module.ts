@@ -9,7 +9,6 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import configFactory from './config';
-// import { WebRTCModule } from './webrtc/webrtc/webrtc.module';
 
 @Module({
   imports: [
@@ -18,7 +17,6 @@ import configFactory from './config';
     ChannelModule,
     ContactModule,
     MessageModule,
-    // WebRTCModule,
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,

@@ -47,6 +47,5 @@ export class User {
   @OneToMany(() => Message, (message) => message.receiverUser)
   receivedMessages: Message[];
 
-  // Add messageCount property for the calculated count from raw queries
   messageCount?: number;
 }

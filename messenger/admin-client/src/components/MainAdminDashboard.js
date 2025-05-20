@@ -3,7 +3,6 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 const MainAdminDashboard = () => {
   const [users, setUsers] = useState([]);
   const [totalUsers, setTotalUsers] = useState(0);
-  const [exportedData, setExportedData] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [limit] = useState(10);
   const [mostActiveUsers, setMostActiveUsers] = useState([]);
@@ -109,28 +108,72 @@ const MainAdminDashboard = () => {
     try {
       const response = await fetch(`${API_BASE}/export`, { headers });
       const data = await response.json();
-      setExportedData(data.exported);
-      alert('Данные экспортированы в консоль');
       console.log('Exported users:', data.exported);
+
+      // Create a Blob from the JSON data
+      const jsonBlob = new Blob([JSON.stringify(data.exported, null, 2)], { type: 'application/json' });
+
+      // Create a link element
+      const url = URL.createObjectURL(jsonBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'users_export.json'; // Specify the filename
+
+      // Append the link to the body and click it to trigger the download
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up by revoking the object URL
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      alert('Данные экспортированы в файл users_export.json');
+
     } catch (error) {
       console.error('Ошибка при экспорте:', error);
+      alert('Ошибка при экспорте данных');
     }
   };
 
   const handleImport = async () => {
-    if (!exportedData) return alert('Нет данных для импорта');
+    // Create a file input element
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.json'; // Accept only JSON files
 
-    try {
-      await fetch(`${API_BASE}/import`, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify(exportedData),
-      });
-      fetchAllUsers();
-      alert('Данные успешно импортированы');
-    } catch (error) {
-      console.error('Ошибка при импорте:', error);
-    }
+    // Trigger the file selection dialog
+    fileInput.click();
+
+    // Listen for file selection
+    fileInput.onchange = async (event) => {
+      const file = event.target.files[0];
+      if (!file) {
+        alert('Файл не выбран');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const importedData = JSON.parse(e.target.result);
+          if (!Array.isArray(importedData)) {
+            throw new Error('Некорректный формат файла: ожидается массив пользователей.');
+          }
+
+          await fetch(`${API_BASE}/import`, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify(importedData),
+          });
+          fetchAllUsers();
+          alert('Данные успешно импортированы');
+        } catch (error) {
+          console.error('Ошибка при импорте:', error);
+          alert(`Ошибка при импорте данных: ${error.message}`);
+        }
+      };
+      reader.readAsText(file);
+    };
   };
 
   const handlePageChange = (newPage) => {
@@ -227,6 +270,15 @@ const MainAdminDashboard = () => {
         <span>Page {currentPage}</span>
         <button onClick={() => handlePageChange(currentPage + 1)} disabled={users.length < limit}>
           Next
+        </button>
+      </div>
+
+      <div className="export-import-buttons" style={{ marginTop: '20px' }}>
+        <button onClick={handleExport} style={{ marginRight: '10px' }}>
+          Export Users
+        </button>
+        <button onClick={handleImport}>
+          Import Users
         </button>
       </div>
     </div>
