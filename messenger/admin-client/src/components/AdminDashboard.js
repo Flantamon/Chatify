@@ -12,7 +12,7 @@ const AdminDashboard = () => {
   const usersPerPage = 5;
   const channelsPerPage = 5;
 
-  const API_BASE = `https://${process.env.REACT_APP_API_BASE_URL}`;
+  const API_BASE = `${process.env.REACT_APP_API_PROTOCOL || 'https'}://${process.env.REACT_APP_API_BASE_URL}`;
 
   const token = localStorage.getItem('adminToken');
 
@@ -174,40 +174,160 @@ const AdminDashboard = () => {
     }
   };
 
+  const styles = {
+    container: {
+      minHeight: '100vh',
+      backgroundColor: '#121212',
+      color: '#ffffff',
+      padding: '20px',
+      fontFamily: 'Arial, sans-serif',
+    },
+    header: {
+      textAlign: 'center',
+      marginBottom: '30px',
+      color: '#ffffff',
+    },
+    section: {
+      backgroundColor: '#1e1e1e',
+      borderRadius: '10px',
+      padding: '20px',
+      marginBottom: '30px',
+      boxShadow: '0 4px 8px rgba(0, 0, 0, 0.3)',
+    },
+    sectionTitle: {
+      color: '#64b5f6',
+      marginBottom: '20px',
+      borderBottom: '2px solid #64b5f6',
+      paddingBottom: '10px',
+    },
+    table: {
+      width: '100%',
+      borderCollapse: 'collapse',
+      backgroundColor: '#2a2a2a',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      boxShadow: '0 2px 4px rgba(0, 0, 0, 0.3)',
+    },
+    tableHeader: {
+      backgroundColor: '#333333',
+      color: '#ffffff',
+      padding: '15px',
+      textAlign: 'left',
+      fontWeight: 'bold',
+    },
+    tableCell: {
+      padding: '15px',
+      borderBottom: '1px solid #444444',
+      color: '#ffffff',
+    },
+    button: {
+      padding: '8px 16px',
+      border: 'none',
+      borderRadius: '5px',
+      cursor: 'pointer',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      marginRight: '10px',
+      transition: 'all 0.3s ease',
+    },
+    primaryButton: {
+      backgroundColor: '#4caf50',
+      color: '#ffffff',
+    },
+    primaryButtonHover: {
+      backgroundColor: '#45a049',
+    },
+    dangerButton: {
+      backgroundColor: '#f44336',
+      color: '#ffffff',
+    },
+    dangerButtonHover: {
+      backgroundColor: '#d32f2f',
+    },
+    warningButton: {
+      backgroundColor: '#ff9800',
+      color: '#ffffff',
+    },
+    warningButtonHover: {
+      backgroundColor: '#f57c00',
+    },
+    input: {
+      padding: '10px',
+      border: '1px solid #555555',
+      borderRadius: '5px',
+      backgroundColor: '#2a2a2a',
+      color: '#ffffff',
+      fontSize: '14px',
+      marginRight: '10px',
+      width: '200px',
+    },
+    form: {
+      display: 'flex',
+      alignItems: 'center',
+      marginBottom: '20px',
+      flexWrap: 'wrap',
+      gap: '10px',
+    },
+    pagination: {
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginTop: '20px',
+      gap: '20px',
+    },
+    paginationButton: {
+      padding: '10px 20px',
+      backgroundColor: '#333333',
+      color: '#ffffff',
+      border: 'none',
+      borderRadius: '5px',
+      cursor: 'pointer',
+      transition: 'background-color 0.3s ease',
+    },
+    paginationButtonDisabled: {
+      backgroundColor: '#555555',
+      cursor: 'not-allowed',
+    },
+    paginationText: {
+      color: '#cccccc',
+      fontSize: '16px',
+    },
+  };
+
   return (
-    <div className="admin-dashboard">
-      <h2>Admin Dashboard</h2>
+    <div style={styles.container}>
+      <h2 style={styles.header}>Admin Dashboard</h2>
 
       {/* Users Section */}
-      <div className="users-section">
-        <h3>Users Management</h3>
-        <table className="users-table">
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>Users Management</h3>
+        <table style={styles.table}>
           <thead>
             <tr>
-              <th>Name</th>
-              <th>Email</th>
-              <th>Status</th>
-              <th>Actions</th>
+              <th style={styles.tableHeader}>Name</th>
+              <th style={styles.tableHeader}>Email</th>
+              <th style={styles.tableHeader}>Status</th>
+              <th style={styles.tableHeader}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {users.map(user => (
               <tr key={user.id}>
-                <td>{user.name}</td>
-                <td>{user.email}</td>
-                <td>{user.status}</td>
-                <td className="actions">
+                <td style={styles.tableCell}>{user.name}</td>
+                <td style={styles.tableCell}>{user.email}</td>
+                <td style={styles.tableCell}>{user.status}</td>
+                <td style={styles.tableCell}>
                   {user.status === 'blocked' ? (
                     <button
+                      style={{...styles.button, ...styles.primaryButton}}
                       onClick={() => handleUpdateUserStatus(user.id, 'active')}
-                      className="unblock-button"
                     >
                       Unblock
                     </button>
                   ) : (
                     <button
+                      style={{...styles.button, ...styles.dangerButton}}
                       onClick={() => handleUpdateUserStatus(user.id, 'blocked')}
-                      className="block-button"
                     >
                       Block
                     </button>
@@ -220,25 +340,40 @@ const AdminDashboard = () => {
       </div>
 
       {/* Pagination Controls */}
-      <div className="pagination-controls">
-        <button onClick={handlePreviousPage} disabled={currentPage === 1}>
+      <div style={styles.pagination}>
+        <button
+          style={{
+            ...styles.paginationButton,
+            ...(currentPage === 1 ? styles.paginationButtonDisabled : {})
+          }}
+          onClick={handlePreviousPage}
+          disabled={currentPage === 1}
+        >
           Previous
         </button>
-        <span>Page {currentPage} of {totalPages}</span>
-        <button onClick={handleNextPage} disabled={currentPage === totalPages}>
+        <span style={styles.paginationText}>Page {currentPage} of {totalPages}</span>
+        <button
+          style={{
+            ...styles.paginationButton,
+            ...(currentPage === totalPages ? styles.paginationButtonDisabled : {})
+          }}
+          onClick={handleNextPage}
+          disabled={currentPage === totalPages}
+        >
           Next
         </button>
       </div>
 
       {/* Channel Management Section */}
-      <div className="channels-section">
-        <h3>Channel Management</h3>
+      <div style={styles.section}>
+        <h3 style={styles.sectionTitle}>Channel Management</h3>
 
         {/* Add Channel Form */}
-        <div className="add-channel-form">
-          <h4>Add New Channel</h4>
-          <form onSubmit={handleAddChannel}>
+        <div>
+          <h4 style={{color: '#64b5f6', marginBottom: '15px'}}>Add New Channel</h4>
+          <form style={styles.form} onSubmit={handleAddChannel}>
             <input
+              style={styles.input}
               type="text"
               placeholder="Channel Name"
               value={newChannel.name}
@@ -248,6 +383,7 @@ const AdminDashboard = () => {
               required
             />
             <input
+              style={styles.input}
               type="text"
               placeholder="Channel Tag"
               value={newChannel.tag}
@@ -256,27 +392,28 @@ const AdminDashboard = () => {
               }
               required
             />
-            <button type="submit">Add Channel</button>
+            <button style={{...styles.button, ...styles.primaryButton}} type="submit">Add Channel</button>
           </form>
         </div>
 
         {/* Channels Table */}
-        <table className="channels-table">
+        <table style={styles.table}>
           <thead>
             <tr>
-              <th>ID</th>
-              <th>Name</th>
-              <th>Tag</th>
-              <th>Actions</th>
+              <th style={styles.tableHeader}>ID</th>
+              <th style={styles.tableHeader}>Name</th>
+              <th style={styles.tableHeader}>Tag</th>
+              <th style={styles.tableHeader}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {channels.map(channel => (
               <tr key={channel.id}>
-                <td>{channel.id}</td>
-                <td>
+                <td style={styles.tableCell}>{channel.id}</td>
+                <td style={styles.tableCell}>
                   {editingChannel?.id === channel.id ? (
                     <input
+                      style={{...styles.input, width: '150px'}}
                       type="text"
                       value={editingChannel.name}
                       onChange={(e) =>
@@ -290,9 +427,10 @@ const AdminDashboard = () => {
                     channel.name
                   )}
                 </td>
-                <td>
+                <td style={styles.tableCell}>
                   {editingChannel?.id === channel.id ? (
                     <input
+                      style={{...styles.input, width: '100px'}}
                       type="text"
                       value={editingChannel.tag}
                       onChange={(e) =>
@@ -306,17 +444,17 @@ const AdminDashboard = () => {
                     channel.tag
                   )}
                 </td>
-                <td className="actions">
+                <td style={styles.tableCell}>
                   {editingChannel?.id === channel.id ? (
                     <>
                       <button
-                        className="save-button"
+                        style={{...styles.button, ...styles.primaryButton}}
                         onClick={() => handleEditChannel(channel.id)}
                       >
                         Save
                       </button>
                       <button
-                        className="cancel-button"
+                        style={{...styles.button, backgroundColor: '#666', color: '#fff'}}
                         onClick={() => setEditingChannel(null)}
                       >
                         Cancel
@@ -325,13 +463,13 @@ const AdminDashboard = () => {
                   ) : (
                     <>
                       <button
-                        className="edit-button"
+                        style={{...styles.button, ...styles.warningButton}}
                         onClick={() => setEditingChannel(channel)}
                       >
                         Edit
                       </button>
                       <button
-                        className="delete-button"
+                        style={{...styles.button, ...styles.dangerButton}}
                         onClick={() => handleDeleteChannel(channel.id)}
                       >
                         Delete
@@ -346,12 +484,26 @@ const AdminDashboard = () => {
       </div>
 
       {/* Channel Pagination Controls */}
-      <div className="pagination-controls">
-        <button onClick={handleChannelPreviousPage} disabled={channelCurrentPage === 1}>
+      <div style={styles.pagination}>
+        <button
+          style={{
+            ...styles.paginationButton,
+            ...(channelCurrentPage === 1 ? styles.paginationButtonDisabled : {})
+          }}
+          onClick={handleChannelPreviousPage}
+          disabled={channelCurrentPage === 1}
+        >
           Previous
         </button>
-        <span>Page {channelCurrentPage} of {channelTotalPages}</span>
-        <button onClick={handleChannelNextPage} disabled={channelCurrentPage === channelTotalPages}>
+        <span style={styles.paginationText}>Page {channelCurrentPage} of {channelTotalPages}</span>
+        <button
+          style={{
+            ...styles.paginationButton,
+            ...(channelCurrentPage === channelTotalPages ? styles.paginationButtonDisabled : {})
+          }}
+          onClick={handleChannelNextPage}
+          disabled={channelCurrentPage === channelTotalPages}
+        >
           Next
         </button>
       </div>

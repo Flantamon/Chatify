@@ -27,8 +27,4 @@ export class RegisterDto {
       'Password must contain at least 1 uppercase letter, 1 lowercase letter and 1 number',
   })
   password: string;
-
-  // @IsOptional()
-  // @IsString()
-  // captcha?: string;
 }

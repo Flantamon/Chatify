@@ -7,7 +7,71 @@ import Login from './components/Login';
 import Register from './components/Register';
 import ContextMenu from './components/ContextMenu';
 import './App.css';
-import { getToken, getUserIdFromToken, isTokenExpired, removeToken } from './utils/auth';
+import { getToken, getUserIdFromToken, isTokenExpired, removeToken, getApiHost } from './utils/auth';
+
+// Компонент для уведомления о блокировке
+const BlockNotification = ({ language, onLogout }) => {
+  const [countdown, setCountdown] = useState(10);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      const timer = setTimeout(() => setCountdown(countdown - 1), 1000);
+      return () => clearTimeout(timer);
+    } else {
+      onLogout();
+    }
+  }, [countdown, onLogout]);
+
+  const message = language === 'ru'
+    ? `Вы получили блокировку в системе. Вы будете перемещены на страницу входа через ${countdown} секунд`
+    : `You have been blocked in the system. You will be redirected to the login page in ${countdown} seconds`;
+
+  return (
+    <div style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      width: '100%',
+      height: '100%',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 10000,
+    }}>
+      <div style={{
+        background: 'white',
+        padding: '30px',
+        borderRadius: '10px',
+        textAlign: 'center',
+        maxWidth: '500px',
+        boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)',
+      }}>
+        <h2 style={{ color: '#e74c3c', marginBottom: '20px' }}>
+          {language === 'ru' ? 'Аккаунт заблокирован' : 'Account Blocked'}
+        </h2>
+        <p style={{ fontSize: '16px', lineHeight: '1.5', color: '#333' }}>
+          {message}
+        </p>
+        <div style={{
+          width: '100%',
+          height: '4px',
+          backgroundColor: '#eee',
+          borderRadius: '2px',
+          marginTop: '20px',
+          overflow: 'hidden',
+        }}>
+          <div style={{
+            width: `${(countdown / 10) * 100}%`,
+            height: '100%',
+            backgroundColor: '#e74c3c',
+            transition: 'width 1s linear',
+          }} />
+        </div>
+      </div>
+    </div>
+  );
+};
 
 // Создаем контекст для темы и языка
 const SettingsContext = createContext();
@@ -29,6 +93,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [filteredContacts, setFilteredContacts] = useState([]);
+  const [showBlockNotification, setShowBlockNotification] = useState(false);
   const { theme, language, setTheme, setLanguage } = useSettings();
 
   useEffect(() => {
@@ -44,6 +109,46 @@ function App() {
     return () => clearInterval(interval);
   }, []);
 
+  const checkUserStatus = async () => {
+    if (!isLoggedIn) return;
+
+    try {
+      const token = getToken();
+      if (isTokenExpired(token)) {
+        handleLogout();
+        return;
+      }
+
+      const response = await fetch(`https://${getApiHost()}/users`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.status === 401) {
+        handleLogout();
+        return;
+      }
+
+      if (!response.ok) {
+        console.error('Failed to check user status');
+        return;
+      }
+
+      const settings = await response.json();
+
+      // Проверяем статус пользователя
+      if (settings[0]?.status === 'blocked') {
+        setShowBlockNotification(true);
+        return;
+      }
+    } catch (error) {
+      console.error('Error checking user status:', error);
+    }
+  };
+
   useEffect(() => {
     if (!isLoggedIn) return;
 
@@ -56,7 +161,7 @@ function App() {
           return;
         }
 
-        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users`, {
+        const response = await fetch(`https://${getApiHost()}/users`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -74,6 +179,13 @@ function App() {
         }
 
         const settings = await response.json();
+
+        // Проверяем статус пользователя
+        if (settings[0]?.status === 'blocked') {
+          setShowBlockNotification(true);
+          return;
+        }
+
         setTheme(settings[0]?.theme || 'light');
         setLanguage(settings[0]?.language || 'en');
       } catch (error) {
@@ -84,6 +196,11 @@ function App() {
     };
 
     fetchSettings();
+
+    // Периодическая проверка статуса пользователя каждые 5 секунд
+    const statusCheckInterval = setInterval(checkUserStatus, 5000);
+
+    return () => clearInterval(statusCheckInterval);
   }, [isLoggedIn, setTheme, setLanguage]);
 
   useEffect(() => {
@@ -98,7 +215,7 @@ function App() {
           return;
         }
 
-        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+        const response = await fetch(`https://${getApiHost()}/contacts`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -135,39 +252,58 @@ function App() {
     loadContacts();
   }, [isLoggedIn, refreshContacts]);
 
+  // Загрузка контактов для модального окна
+  const loadContactsForModal = async (search = '') => {
+    try {
+      const token = getToken();
+      const searchParam = search ? `&searchTerm=${encodeURIComponent(search)}` : '';
+      const response = await fetch(`https://${getApiHost()}/users?page=1&limit=50${searchParam}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('Loaded contacts for modal:', data);
+      setFilteredContacts(data.users || []);
+    } catch (error) {
+      console.error('Error fetching contacts for modal:', error);
+      setFilteredContacts([]);
+    }
+  };
+
   useEffect(() => {
     const loadContacts = async () => {
-      if (searchTerm.length < 3) {
-        setContacts([]);
+      if (searchTerm.length < 3 && !isAddContactModalOpen) {
+        setFilteredContacts([]);
         return;
       }
 
-      try {
-        const token = getToken();
-        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users?searchTerm=${encodeURIComponent(searchTerm)}`, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const fetchedContacts = await response.json();
-        console.log(fetchedContacts);
-        setFilteredContacts(fetchedContacts);
-      } catch (error) {
-        console.error('Error fetching contacts:', error);
-        setFilteredContacts([]);
+      if (isAddContactModalOpen) {
+        await loadContactsForModal(searchTerm);
       }
     };
 
     const debounceTimer = setTimeout(loadContacts, 300);
     return () => clearTimeout(debounceTimer);
-  }, [searchTerm]);
+  }, [searchTerm, isAddContactModalOpen]);
+
+  // Загружаем контакты при открытии модального окна
+  useEffect(() => {
+    if (isAddContactModalOpen) {
+      loadContactsForModal();
+    } else {
+      setFilteredContacts([]);
+      setSearchTerm('');
+      setSelectedContacts([]);
+    }
+  }, [isAddContactModalOpen]);
 
   const handleLoginSuccess = () => {
     setIsLoggedIn(true);
@@ -179,6 +315,7 @@ function App() {
     setIsLoggedIn(false);
     setActiveChat(null);
     setError(null);
+    setShowBlockNotification(false);
   };
 
   const handleSaveSettings = async (newTheme, newLanguage) => {
@@ -191,7 +328,7 @@ function App() {
       }
 
       const userId = getUserIdFromToken();
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/users/${userId}`, {
+      const response = await fetch(`https://${getApiHost()}/users/${userId}`, {
         method: 'PATCH',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -231,7 +368,7 @@ function App() {
       }
 
       // Step 1: Fetch existing contacts
-      const existingContactsResponse = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+      const existingContactsResponse = await fetch(`https://${getApiHost()}/contacts`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -297,7 +434,7 @@ function App() {
       // Step 5: Send POST requests for new contacts
       const promises = contactsToAdd.map(async (contactId) => {
         try {
-          const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+          const response = await fetch(`https://${getApiHost()}/contacts`, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${token}`,
@@ -385,7 +522,7 @@ function App() {
         return;
       }
 
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+      const response = await fetch(`https://${getApiHost()}/contacts`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -506,38 +643,280 @@ function App() {
           )}
   
           {isAddContactModalOpen && (
-            <div className="modal">
-              <div className="modal-content" style={{ background: theme === 'dark' ? 'var(--dark-modal-bg)' : 'var(--modal-bg)' }}>
-                <span className="close" onClick={() => setAddContactModalOpen(false)}>&times;</span>
-                <h2>{language === 'en' ? 'Add Contact' : 'Добавить контакт'}</h2>
-                <input
-                  type="text"
-                  placeholder={language === 'en' ? 'Search contacts...' : 'Поиск контактов...'}
-                  value={searchTerm}
-                  onChange={handleSearchChange}
-                />
-                <ul>
-                  {filteredContacts.map(contact => (
-                    <li key={contact.id}>
-                      <input
-                        type="checkbox"
-                        value={contact.id}
-                        onChange={(e) => {
-                          const id = parseInt(e.target.value);
-                          setSelectedContacts(prev =>
-                            e.target.checked
-                              ? [...prev, id]
-                              : prev.filter(contactId => contactId !== id)
-                          );
+            <div style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 1000,
+              animation: 'modalFadeIn 0.3s ease-out',
+            }}>
+              <div style={{
+                background: theme === 'dark' ? '#2a2a2a' : '#ffffff',
+                borderRadius: '16px',
+                padding: '32px',
+                maxWidth: '500px',
+                width: '90%',
+                maxHeight: '80vh',
+                overflow: 'hidden',
+                boxShadow: theme === 'dark'
+                  ? '0 25px 50px rgba(0, 0, 0, 0.5), 0 15px 35px rgba(0, 0, 0, 0.4)'
+                  : '0 25px 50px rgba(0, 0, 0, 0.15), 0 15px 35px rgba(0, 0, 0, 0.1)',
+                border: theme === 'dark' ? '1px solid #444' : '1px solid #e1e5e9',
+                animation: 'modalSlideIn 0.3s ease-out',
+                display: 'flex',
+                flexDirection: 'column',
+              }}>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  borderBottom: theme === 'dark' ? '1px solid #444' : '1px solid #e1e5e9',
+                  paddingBottom: '16px',
+                }}>
+                  <h2 style={{
+                    margin: 0,
+                    color: theme === 'dark' ? '#ffffff' : '#333333',
+                    fontSize: '24px',
+                    fontWeight: '600',
+                  }}>
+                    👥 {language === 'en' ? 'Add Contact' : 'Добавить контакт'}
+                  </h2>
+                  <button
+                    onClick={() => setAddContactModalOpen(false)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      fontSize: '28px',
+                      cursor: 'pointer',
+                      color: theme === 'dark' ? '#cccccc' : '#666666',
+                      padding: '4px',
+                      borderRadius: '8px',
+                      transition: 'all 0.2s ease',
+                      width: '40px',
+                      height: '40px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = theme === 'dark' ? '#444' : '#f0f0f0';
+                      e.target.style.color = theme === 'dark' ? '#ffffff' : '#333333';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                      e.target.style.color = theme === 'dark' ? '#cccccc' : '#666666';
+                    }}
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{
+                    position: 'relative',
+                    marginBottom: '16px',
+                  }}>
+                    <input
+                      type="text"
+                      placeholder={language === 'en' ? '🔍 Search contacts...' : '🔍 Поиск контактов...'}
+                      value={searchTerm}
+                      onChange={handleSearchChange}
+                      style={{
+                        width: '100%',
+                        padding: '14px 16px',
+                        paddingLeft: '44px',
+                        border: theme === 'dark' ? '2px solid #555' : '2px solid #e1e5e9',
+                        borderRadius: '12px',
+                        fontSize: '16px',
+                        backgroundColor: theme === 'dark' ? '#333' : '#ffffff',
+                        color: theme === 'dark' ? '#ffffff' : '#333333',
+                        transition: 'all 0.3s ease',
+                        boxSizing: 'border-box',
+                        outline: 'none',
+                      }}
+                      onFocus={(e) => {
+                        e.target.style.borderColor = '#667eea';
+                        e.target.style.boxShadow = '0 0 0 3px rgba(102, 126, 234, 0.1)';
+                      }}
+                      onBlur={(e) => {
+                        e.target.style.borderColor = theme === 'dark' ? '#555' : '#e1e5e9';
+                        e.target.style.boxShadow = 'none';
+                      }}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      left: '14px',
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      color: theme === 'dark' ? '#888' : '#666',
+                      fontSize: '16px',
+                      pointerEvents: 'none',
+                    }}>
+                      🔍
+                    </div>
+                  </div>
+
+                  {searchTerm.length < 3 && (
+                    <p style={{
+                      color: theme === 'dark' ? '#888' : '#666',
+                      fontSize: '14px',
+                      margin: '8px 0',
+                      fontStyle: 'italic',
+                    }}>
+                      {language === 'en' ? 'Type at least 3 characters to search' : 'Введите минимум 3 символа для поиска'}
+                    </p>
+                  )}
+                </div>
+
+                <div style={{
+                  flex: 1,
+                  overflowY: 'auto',
+                  maxHeight: '300px',
+                  marginBottom: '20px',
+                }}>
+                  {filteredContacts.length > 0 ? (
+                    <ul style={{
+                      listStyle: 'none',
+                      padding: 0,
+                      margin: 0,
+                    }}>
+                      {filteredContacts.map(contact => (
+                        <li key={contact.id} style={{
+                          marginBottom: '8px',
+                          padding: '12px 16px',
+                          backgroundColor: selectedContacts.includes(contact.id)
+                            ? (theme === 'dark' ? '#4a4a4a' : '#e3f2fd')
+                            : (theme === 'dark' ? '#3a3a3a' : '#f8f9fa'),
+                          borderRadius: '8px',
+                          border: selectedContacts.includes(contact.id)
+                            ? '2px solid #667eea'
+                            : (theme === 'dark' ? '1px solid #555' : '1px solid #e1e5e9'),
+                          transition: 'all 0.2s ease',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
                         }}
-                      />
-                      {contact.name}
-                    </li>
-                  ))}
-                </ul>
-                <button onClick={handleAddContact}>
-                  {language === 'en' ? 'Add Selected' : 'Добавить выбранные'}
-                </button>
+                        onClick={() => {
+                          const id = contact.id;
+                          setSelectedContacts(prev =>
+                            prev.includes(id)
+                              ? prev.filter(contactId => contactId !== id)
+                              : [...prev, id]
+                          );
+                        }}>
+                          <input
+                            type="checkbox"
+                            checked={selectedContacts.includes(contact.id)}
+                            onChange={() => {}} // Обработчик в onClick выше
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#667eea',
+                              cursor: 'pointer',
+                            }}
+                          />
+                          <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '8px',
+                          }}>
+                            <span style={{
+                              fontSize: '20px',
+                            }}>
+                              👤
+                            </span>
+                            <span style={{
+                              color: theme === 'dark' ? '#ffffff' : '#333333',
+                              fontWeight: '500',
+                            }}>
+                              {contact.name}
+                            </span>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : searchTerm.length >= 3 ? (
+                    <div style={{
+                      textAlign: 'center',
+                      padding: '40px 20px',
+                      color: theme === 'dark' ? '#888' : '#666',
+                    }}>
+                      <span style={{ fontSize: '48px', marginBottom: '16px', display: 'block' }}>🔍</span>
+                      <p>{language === 'en' ? 'No contacts found' : 'Контакты не найдены'}</p>
+                    </div>
+                  ) : null}
+                </div>
+
+                <div style={{
+                  display: 'flex',
+                  gap: '12px',
+                  justifyContent: 'flex-end',
+                }}>
+                  <button
+                    onClick={() => setAddContactModalOpen(false)}
+                    style={{
+                      padding: '12px 24px',
+                      backgroundColor: theme === 'dark' ? '#444' : '#f5f5f5',
+                      color: theme === 'dark' ? '#ffffff' : '#333333',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.target.style.backgroundColor = theme === 'dark' ? '#555' : '#e0e0e0';
+                    }}
+                    onMouseLeave={(e) => {
+                      e.target.style.backgroundColor = theme === 'dark' ? '#444' : '#f5f5f5';
+                    }}
+                  >
+                    {language === 'en' ? 'Cancel' : 'Отмена'}
+                  </button>
+                  <button
+                    onClick={handleAddContact}
+                    disabled={selectedContacts.length === 0 || loading}
+                    style={{
+                      padding: '12px 24px',
+                      backgroundColor: selectedContacts.length === 0 || loading ? '#cccccc' : '#667eea',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontSize: '16px',
+                      fontWeight: '500',
+                      cursor: selectedContacts.length === 0 || loading ? 'not-allowed' : 'pointer',
+                      transition: 'all 0.2s ease',
+                      opacity: selectedContacts.length === 0 || loading ? 0.6 : 1,
+                    }}
+                    onMouseEnter={(e) => {
+                      if (selectedContacts.length > 0 && !loading) {
+                        e.target.style.backgroundColor = '#5a67d8';
+                        e.target.style.transform = 'translateY(-1px)';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (selectedContacts.length > 0 && !loading) {
+                        e.target.style.backgroundColor = '#667eea';
+                        e.target.style.transform = 'translateY(0)';
+                      }
+                    }}
+                  >
+                    {loading
+                      ? (language === 'en' ? 'Adding...' : 'Добавление...')
+                      : `${language === 'en' ? 'Add Selected' : 'Добавить выбранные'} (${selectedContacts.length})`
+                    }
+                  </button>
+                </div>
               </div>
             </div>
           )}
@@ -573,6 +952,13 @@ function App() {
             <button onClick={() => setError(null)}>OK</button>
           </div>
         </div>
+      )}
+
+      {showBlockNotification && (
+        <BlockNotification
+          language={language}
+          onLogout={handleLogout}
+        />
       )}
     </SettingsContext.Provider>
   );

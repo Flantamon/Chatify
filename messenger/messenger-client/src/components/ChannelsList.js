@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import socketManager from '../utils/socketManager';
+import { getApiHost } from '../utils/auth';
 
 const getToken = () => localStorage.getItem('accessToken');
 
@@ -7,13 +9,14 @@ const ChannelList = ({ onSelect }) => {
   const [loading, setLoading] = useState(true);
   const [newChannelName, setNewChannelName] = useState('');
   const [newChannelTag, setNewChannelTag] = useState('');
-  const [searchTag, setSearchTag] = useState('');
+  const [searchTag] = useState('');
   const [filteredChannels, setFilteredChannels] = useState([]);
 
   const fetchChannels = async () => {
     try {
       const token = getToken();
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/channels`, {
+      const apiHost = getApiHost();
+      const response = await fetch(`https://${apiHost}/channels`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -39,7 +42,8 @@ const ChannelList = ({ onSelect }) => {
   const handleCreateChannel = async () => {
     try {
       const token = getToken();
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/channels`, {
+      const apiHost = getApiHost();
+      const response = await fetch(`https://${apiHost}/channels`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -67,7 +71,8 @@ const ChannelList = ({ onSelect }) => {
 
     try {
       const token = getToken();
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/channels/${id}`, {
+      const apiHost = getApiHost();
+      const response = await fetch(`https://${apiHost}/channels/${id}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -113,6 +118,38 @@ const ChannelList = ({ onSelect }) => {
     );
     setFilteredChannels(filtered);
   }, [searchTag, channels]);
+
+  // WebSocket subscriptions for real-time channel updates
+  useEffect(() => {
+    const socket = socketManager.socket;
+
+    const handleChannelCreated = (channel) => {
+      console.log('Channel created:', channel);
+      setChannels(prev => [...prev, { id: channel.id, name: channel.name }]);
+    };
+
+    const handleChannelUpdated = (channel) => {
+      console.log('Channel updated:', channel);
+      setChannels(prev => prev.map(ch =>
+        ch.id === channel.id ? { id: channel.id, name: channel.name } : ch
+      ));
+    };
+
+    const handleChannelDeleted = (data) => {
+      console.log('Channel deleted:', data.id);
+      setChannels(prev => prev.filter(ch => ch.id !== data.id));
+    };
+
+    socket.on('channel-created', handleChannelCreated);
+    socket.on('channel-updated', handleChannelUpdated);
+    socket.on('channel-deleted', handleChannelDeleted);
+
+    return () => {
+      socket.off('channel-created', handleChannelCreated);
+      socket.off('channel-updated', handleChannelUpdated);
+      socket.off('channel-deleted', handleChannelDeleted);
+    };
+  }, []);
 
   if (loading) return <div>Loading channels...</div>;
 

@@ -16,16 +16,22 @@ import { JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard';
 import { RolesGuard } from 'src/shared/guards/roles.guard';
 import { Roles } from 'src/shared/decorators/roles.decorator';
 import { UserRole } from 'src/shared/enums/user-role.enum';
+import { EventsGateway } from 'src/events/events.gateway';
 
 @Controller('channels')
 export class ChannelController {
-  constructor(private readonly channelService: ChannelService) {}
+  constructor(
+    private readonly channelService: ChannelService,
+    private readonly eventsGateway: EventsGateway,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Post()
-  create(@Body() dto: CreateChannelDto) {
-    return this.channelService.create(dto);
+  async create(@Body() dto: CreateChannelDto) {
+    const channel = await this.channelService.create(dto);
+    this.eventsGateway.sendChannelCreated(channel);
+    return channel;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -53,14 +59,19 @@ export class ChannelController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Patch(':id')
-  update(@Param('id') id: string, @Body() dto: UpdateChannelDto) {
-    return this.channelService.update(+id, dto);
+  async update(@Param('id') id: string, @Body() dto: UpdateChannelDto) {
+    const channel = await this.channelService.update(+id, dto);
+    this.eventsGateway.sendChannelUpdated(channel);
+    return channel;
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.channelService.remove(+id);
+  async remove(@Param('id') id: string) {
+    const channelId = +id;
+    await this.channelService.remove(channelId);
+    this.eventsGateway.sendChannelDeleted(channelId);
+    return { message: 'Channel deleted successfully' };
   }
 }

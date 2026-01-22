@@ -52,7 +52,7 @@ export class UserController {
       }
 
       if (currentUser.role === UserRole.MAIN_ADMIN) {
-        return await this.userService.findAllUsersWithPagination(page, limit);
+        return await this.userService.getUsersWithFilters(query);
       }
 
       if (currentUser.role === UserRole.ADMIN) {

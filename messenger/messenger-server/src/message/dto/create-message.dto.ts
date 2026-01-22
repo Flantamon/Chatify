@@ -53,6 +53,14 @@ export class CreateMessageDto {
   @IsOptional()
   fileSize?: number;
 
+  @IsString()
+  @IsOptional()
+  messageType?: string;
+
+  @IsNumber()
+  @IsOptional()
+  duration?: number;
+
   @Validate(AtLeastOneRecipient)
   dummyFieldForValidation: boolean;
 }

@@ -12,10 +12,11 @@ import { UserRole } from '../../shared/enums/user-role.enum';
 
 export class GetUsersQueryDto {
   @IsOptional()
-  @IsIn(['messages.count', 'createdAt', 'name'], {
+  @IsIn(['messages.count', 'createdAt', 'name', 'role', 'status'], {
     message: 'Invalid sortBy parameter',
   })
-  sortBy?: 'messages.count' | 'createdAt' | 'name' = 'createdAt';
+  sortBy?: 'messages.count' | 'createdAt' | 'name' | 'role' | 'status' =
+    'createdAt';
 
   @IsOptional()
   @IsIn(['ASC', 'DESC'], {

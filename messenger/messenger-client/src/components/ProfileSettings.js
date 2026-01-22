@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import useTranslation from '../hooks/useTranslation';
 
 const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage, children }) => {
+  const { t } = useTranslation(currentLanguage);
   const [tempTheme, setTempTheme] = useState(currentTheme);
   const [tempLanguage, setTempLanguage] = useState(currentLanguage);
 
@@ -22,23 +24,23 @@ const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage, child
 
   return (
     <div className={`profile-settings ${currentTheme === 'dark' ? 'dark' : ''}`}>
-      <h2>{currentLanguage === 'en' ? 'Profile Settings' : 'Настройки Профиля'}</h2>
+      <h2>{t('profileSettings.title')}</h2>
       <div className="settings-content">
         <div className="setting-item">
-          <label>{currentLanguage === 'en' ? 'Theme' : 'Тема'}</label>
-          <select 
-            value={tempTheme} 
+          <label>{t('profileSettings.theme')}</label>
+          <select
+            value={tempTheme}
             onChange={(e) => setTempTheme(e.target.value)}
           >
-            <option value="light">{currentLanguage === 'en' ? 'Light' : 'Светлая'}</option>
-            <option value="dark">{currentLanguage === 'en' ? 'Dark' : 'Темная'}</option>
+            <option value="light">{t('profileSettings.themeLight')}</option>
+            <option value="dark">{t('profileSettings.themeDark')}</option>
           </select>
         </div>
-        
+
         <div className="setting-item">
-          <label>{currentLanguage === 'en' ? 'Language' : 'Язык'}</label>
-          <select 
-            value={tempLanguage} 
+          <label>{t('profileSettings.language')}</label>
+          <select
+            value={tempLanguage}
             onChange={(e) => setTempLanguage(e.target.value)}
           >
             <option value="en">English</option>
@@ -46,13 +48,13 @@ const ProfileSettings = ({ onClose, onSave, currentTheme, currentLanguage, child
           </select>
         </div>
       </div>
-      
+
       <div className="settings-buttons">
         <button onClick={handleSave}>
-          {currentLanguage === 'en' ? 'Save' : 'Сохранить'}
+          {t('profileSettings.save')}
         </button>
         <button className="cancel" onClick={handleCancel}>
-          {currentLanguage === 'en' ? 'Cancel' : 'Отменить'}
+          {t('profileSettings.cancel')}
         </button>
       </div>
 

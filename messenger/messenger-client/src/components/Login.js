@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiHost } from '../utils/auth';
 
 const Login = ({ onLoginSuccess, switchToRegister }) => {
   const [username, setUsername] = useState('');
@@ -11,8 +12,10 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
     setError('');
     setIsLoading(true);
 
+    let response;
     try {
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/auth/login`, {
+      const apiHost = getApiHost();
+      response = await fetch(`https://${apiHost}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -29,7 +32,12 @@ const Login = ({ onLoginSuccess, switchToRegister }) => {
       onLoginSuccess();
     } catch (error) {
       console.error('Error during login:', error);
-      setError('Login failed. Please check your credentials.');
+
+      if (response && response.status === 403) {
+        setError('Unfortunately, you cannot log into the system. Your account has been blocked');
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
     } finally {
       setIsLoading(false);
     }

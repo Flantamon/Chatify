@@ -42,6 +42,8 @@ export class MessageService {
     const message = this.messageRepository.create({
       text: createMessageDto.text || '',
       sender,
+      messageType: createMessageDto.messageType || (file ? 'file' : 'text'),
+      duration: createMessageDto.duration,
     });
 
     if (createMessageDto.receiverUserId) {
@@ -82,6 +84,13 @@ export class MessageService {
         message.fileUrl = fileUrl;
         message.fileType = file.mimetype;
         message.fileSize = file.size;
+
+        // Определяем тип сообщения на основе типа файла
+        if (file.mimetype.startsWith('audio/')) {
+          message.messageType = 'voice';
+        } else {
+          message.messageType = 'file';
+        }
       } catch (error) {
         console.error('Error saving file:', error);
         throw new Error('Failed to save uploaded file.');
@@ -94,10 +103,29 @@ export class MessageService {
 
     const savedMessage = await this.messageRepository.save(message);
 
-    this.eventsGateway.sendMessageToUser({
+    // Готовим сообщение для отправки через WebSocket
+    const messageToSend = {
       ...savedMessage,
-      senderUsername: savedMessage.sender.name,
-    });
+      sender: {
+        id: savedMessage.sender.id,
+        name: savedMessage.sender.name,
+      },
+      receiverUser: savedMessage.receiverUser
+        ? {
+            id: savedMessage.receiverUser.id,
+            name: savedMessage.receiverUser.name,
+          }
+        : null,
+      receiverChannel: savedMessage.receiverChannel
+        ? {
+            id: savedMessage.receiverChannel.id,
+            name: savedMessage.receiverChannel.name,
+          }
+        : null,
+    };
+    console.log('Prepared message for WebSocket:', messageToSend);
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
+    this.eventsGateway.sendMessageToUser(messageToSend as any);
 
     return savedMessage;
   }
@@ -152,12 +180,33 @@ export class MessageService {
   ): Promise<Message> {
     const message = await this.findOne(id);
     this.messageRepository.merge(message, updateMessageDto);
-    return this.messageRepository.save(message);
+    const updatedMessage = await this.messageRepository.save(message);
+
+    // Отправляем уведомление об обновлении сообщения
+    this.eventsGateway.sendMessageUpdate(updatedMessage);
+
+    return updatedMessage;
   }
 
   async remove(id: number): Promise<Message> {
     const message = await this.findOne(id);
+
+    // Сохраняем ID до удаления
+    const messageId = message.id;
+
     await this.messageRepository.remove(message);
+
+    // Создаем объект с сохраненным ID
+    const messageData = {
+      id: messageId,
+      sender: message.sender,
+      receiverUser: message.receiverUser,
+      receiverChannel: message.receiverChannel,
+    };
+
+    // Отправляем уведомление об удалении сообщения
+    this.eventsGateway.sendMessageDelete(messageData);
+
     return message;
   }
 

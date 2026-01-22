@@ -66,7 +66,7 @@ export class UserService {
   async findByEmail(email: string) {
     return this.userRepository.findOne({
       where: { email },
-      select: ['id', 'email', 'name', 'password', 'role'],
+      select: ['id', 'email', 'name', 'password', 'role', 'status'],
     });
   }
 
@@ -81,9 +81,14 @@ export class UserService {
   async findAllUsersWithPagination(
     page: number,
     limit: number,
+    includeMainAdmins: boolean = false,
   ): Promise<UserPaginationResponse> {
+    const whereCondition = includeMainAdmins
+      ? {}
+      : { role: Not(UserRole.MAIN_ADMIN) };
+
     const [users, total] = await this.userRepository.findAndCount({
-      where: { role: Not(UserRole.MAIN_ADMIN) },
+      where: whereCondition,
       skip: (page - 1) * limit,
       take: limit,
     });
@@ -120,15 +125,14 @@ export class UserService {
   }
 
   async findMostActiveUsers(page: number, limit: number): Promise<any> {
-    // Adjust the return type as needed
     const offset = (page - 1) * limit;
 
     const rawResult = await this.userRepository.query(
       `
-    SELECT u.id, u.role, u.status, u.name, u.email, 
-           (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id) AS max_messages 
+    SELECT u.id, u.role, u.status, u.name, u.email,
+           (SELECT COUNT(*) FROM messages m WHERE m.sender_id = u.id AND m.message_type IN ('text', 'voice')) AS max_messages
     FROM users u
-    ORDER BY max_messages DESC 
+    ORDER BY max_messages DESC
     LIMIT $1 OFFSET $2
   `,
       [limit, offset],
@@ -249,10 +253,9 @@ export class UserService {
     return targetUser;
   }
 
-  //TODO
-  async getUsersWithFilters(query: GetUsersQueryDto) {
-    console.log('Query received in getUsersWithFilters:', query);
-
+  async getUsersWithFilters(
+    query: GetUsersQueryDto,
+  ): Promise<UserPaginationResponse> {
     if (!query) {
       throw new Error('Query is undefined');
     }
@@ -267,8 +270,6 @@ export class UserService {
       searchTerm,
     } = query;
 
-    console.log('Roles before transformation:', roles);
-
     let parsedRoles: string[] = [];
     if (roles) {
       if (typeof roles === 'string') {
@@ -279,11 +280,12 @@ export class UserService {
     }
 
     if (countOnly) {
-      return this.userRepository.count(
+      const count = await this.userRepository.count(
         parsedRoles.length
           ? { where: parsedRoles.map((role) => ({ role })) }
           : {},
       );
+      return { users: [], totalCount: count };
     }
 
     const queryBuilder = this.userRepository
@@ -311,7 +313,9 @@ export class UserService {
 
     queryBuilder.skip((page - 1) * limit).take(limit);
 
-    return queryBuilder.getMany();
+    const [users, totalCount] = await queryBuilder.getManyAndCount();
+
+    return { users, totalCount };
   }
 
   async countAllUsers(): Promise<number> {

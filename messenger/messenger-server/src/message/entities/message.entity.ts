@@ -90,4 +90,18 @@ export class Message {
     nullable: true,
   })
   fileSize: number;
+
+  @Column({
+    name: 'message_type',
+    type: 'varchar',
+    length: 50,
+    default: 'text',
+  })
+  messageType: string;
+
+  @Column({
+    type: 'integer',
+    nullable: true,
+  })
+  duration: number;
 }

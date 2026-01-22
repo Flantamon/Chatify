@@ -9,19 +9,19 @@ import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import configFactory from './config';
+import { CallModule } from './call/call.module';
+import { EventsModule } from './events/events.module';
 
 @Module({
   imports: [
-    UserModule,
-    AuthModule,
-    ChannelModule,
-    ContactModule,
-    MessageModule,
+    // Конфигурационные модули (должны быть первыми)
     ConfigModule.forRoot({
       envFilePath: '.env',
       isGlobal: true,
       load: [configFactory],
     }),
+
+    // Database module
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -33,6 +33,21 @@ import configFactory from './config';
         return dbConfig;
       },
     }),
+
+    // Функциональные модули
+    AuthModule,
+    UserModule,
+    ChannelModule,
+    ContactModule,
+
+    // EventsModule должен быть ДО CallModule
+    EventsModule,
+
+    // CallModule зависит от EventsModule
+    CallModule,
+
+    // MessageModule (зависит от EventsModule для WebSocket уведомлений)
+    MessageModule,
   ],
   controllers: [AppController],
   providers: [AppService],

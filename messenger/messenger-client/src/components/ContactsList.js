@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { getUserIdFromToken } from '../utils/auth';
+import { getUserIdFromToken, getApiHost } from '../utils/auth';
 
 const getToken = () => {
   return localStorage.getItem('accessToken');
@@ -21,7 +21,8 @@ const ContactsList = ({ onSelect, refreshContacts, onContextMenu }) => {
              return;
         }
 
-        const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/contacts`, {
+        const apiHost = getApiHost();
+        const response = await fetch(`https://${apiHost}/contacts`, {
           method: 'GET',
           headers: {
             'Authorization': `Bearer ${token}`,
@@ -39,7 +40,7 @@ const ContactsList = ({ onSelect, refreshContacts, onContextMenu }) => {
             id: contactPerson.id,
             name: contactPerson.name
           };
-        }).filter(contact => contact && contact.id !== undefined);
+        }).filter(contact => contact && contact.id !== undefined && contact.id !== currentUserId);
 
         setContacts(contactsList);
         console.log('Updated contacts:', contactsList);

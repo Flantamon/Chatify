@@ -4,6 +4,15 @@ import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
 
+// Polyfills for Node.js globals in browser environment
+if (typeof window !== 'undefined' && !window.process) {
+  window.process = { env: {} };
+}
+
+if (!global.process) {
+  global.process = { env: {} };
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(
     <App />

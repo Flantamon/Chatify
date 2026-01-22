@@ -1,3 +1,7 @@
+const getApiHost = () => {
+  return process.env.REACT_APP_USER_CLIENT_HOST || 'localhost:3001';
+};
+
 const getToken = () => {
   return localStorage.getItem('accessToken');
 };
@@ -33,4 +37,4 @@ const removeToken = () => {
   localStorage.removeItem('accessToken');
 };
 
-export { getToken, getUserIdFromToken, isTokenExpired, removeToken }; 
+export { getApiHost, getToken, getUserIdFromToken, isTokenExpired, removeToken };

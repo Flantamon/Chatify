@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { getApiHost } from '../utils/auth';
 // import ReCAPTCHA from 'react-google-recaptcha';
 
 const Register = ({ onRegisterSuccess, switchToLogin }) => {
@@ -43,7 +44,8 @@ const Register = ({ onRegisterSuccess, switchToLogin }) => {
 
       // console.log('Sending registration request with token:', token);
 
-      const response = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/auth/register`, {
+      const apiHost = getApiHost();
+      const response = await fetch(`https://${apiHost}/auth/register`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -81,7 +83,7 @@ const Register = ({ onRegisterSuccess, switchToLogin }) => {
         const data = await response.json();
         console.log('Registration successful:', data);
 
-        const responseLogin = await fetch(`https://${process.env.REACT_APP_USER_CLIENT_HOST}/auth/login`, {
+        const responseLogin = await fetch(`https://${apiHost}/auth/login`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

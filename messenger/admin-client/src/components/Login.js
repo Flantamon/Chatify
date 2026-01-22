@@ -4,9 +4,11 @@ import { useNavigate } from 'react-router-dom';
 const Login = () => {
   const [username, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  const API_BASE = `https://${process.env.REACT_APP_API_BASE_URL}`
+  const API_BASE = `https://${process.env.REACT_APP_API_BASE_URL}`;
 
   useEffect(() => {
     const token = localStorage.getItem('adminToken');
@@ -20,7 +22,11 @@ const Login = () => {
     }
   }, [navigate]);
 
-  const handleLogin = async () => {
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    setIsLoading(true);
+
     try {
       const response = await fetch(`${API_BASE}/auth/login`, {
         method: 'POST',
@@ -31,7 +37,12 @@ const Login = () => {
       });
 
       if (!response.ok) {
-        throw new Error('Login failed');
+      if (response.status === 403) {
+        setError('Unfortunately, you cannot log into the system. Your account has been blocked');
+      } else {
+        setError('Login failed. Please check your credentials.');
+      }
+        return;
       }
 
       const data = await response.json();
@@ -40,37 +51,44 @@ const Login = () => {
       localStorage.setItem('userRole', data.role);
       localStorage.setItem('userEmail', data.email);
 
-      console.log(localStorage.getItem(data.role));
-
       if (data.role === 'admin') {
         navigate('/admin');
       } else if (data.role === 'main_admin') {
         navigate('/main-admin');
       } else {
-        alert('Access denied: insufficient privileges');
+        setError('Access denied: insufficient privileges');
       }
     } catch (error) {
       console.error('Error during login:', error);
-      alert('Login failed. Please check your credentials.');
+      setError('Login failed. Please check your credentials.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="login-container">
-      <h2>Admin Login</h2>
-      <input
-        type="email"
-        placeholder="Email"
-        value={username}
-        onChange={(e) => setEmail(e.target.value)}
-      />
-      <input
-        type="password"
-        placeholder="Password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      />
-      <button onClick={handleLogin}>Login</button>
+      <form className="login-form" onSubmit={handleLogin}>
+        <h2>Admin Login</h2>
+        <input
+          type="email"
+          placeholder="Email"
+          value={username}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+        <button type="submit" disabled={isLoading}>
+          {isLoading ? 'Signing in...' : 'Login'}
+        </button>
+        {error && <div className="error-message">{error}</div>}
+      </form>
     </div>
   );
 };
