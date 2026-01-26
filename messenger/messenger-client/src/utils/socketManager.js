@@ -11,11 +11,12 @@ class SocketManager {
     this.callEndedHandlers = new Set();
     this.callAcceptedHandlers = new Set();
     this.callRejectedHandlers = new Set();
-    this.iceCandidateHandlers = new Set(); // Новый обработчик для ICE кандидатов
+    this.iceCandidateHandlers = new Set();
     this.isConnecting = false;
     this.userId = null;
     this.registered = false;
     this.messageQueue = new Map();
+    this.callNotificationQueue = new Map(); // Добавлено для дедупликации уведомлений о звонках
   }
 
   connect() {
@@ -102,7 +103,7 @@ class SocketManager {
       });
     });
 
-    // Обработка видеозвонков
+    // Обработка видеозвонков с дедупликацией
     this.socket.on('call-request', (data) => {
       console.log('Received call request:', data);
       
@@ -110,7 +111,22 @@ class SocketManager {
         return;
       }
       
-      this.callRequestHandlers.forEach(handler => handler(data));
+      // Используем дедупликацию для call-request
+      const callerId = data.from || (data.caller && data.caller.id);
+      if (!callerId) {
+        console.warn('call-request without valid caller ID');
+        return;
+      }
+      
+      this.handleCallWithDeduplication('call-request', callerId, () => {
+        this.callRequestHandlers.forEach(handler => {
+          try {
+            handler(data);
+          } catch (error) {
+            console.error('Error in call request handler:', error);
+          }
+        });
+      });
     });
 
     this.socket.on('call-accepted', (data) => {
@@ -120,7 +136,13 @@ class SocketManager {
         return;
       }
       
-      this.callAcceptedHandlers.forEach(handler => handler(data));
+      this.callAcceptedHandlers.forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error('Error in call accepted handler:', error);
+        }
+      });
     });
 
     this.socket.on('call-rejected', (data) => {
@@ -130,7 +152,13 @@ class SocketManager {
         return;
       }
       
-      this.callRejectedHandlers.forEach(handler => handler(data));
+      this.callRejectedHandlers.forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error('Error in call rejected handler:', error);
+        }
+      });
     });
 
     this.socket.on('call-ended', (data) => {
@@ -140,7 +168,13 @@ class SocketManager {
         return;
       }
       
-      this.callEndedHandlers.forEach(handler => handler(data));
+      this.callEndedHandlers.forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error('Error in call ended handler:', error);
+        }
+      });
     });
 
     // WebRTC сигнальные сообщения обрабатываются напрямую в VideoCall
@@ -166,16 +200,24 @@ class SocketManager {
       }
       
       // ICE кандидаты - отдельный тип сообщений!
-      this.iceCandidateHandlers.forEach(handler => handler(data));
+      this.iceCandidateHandlers.forEach(handler => {
+        try {
+          handler(data);
+        } catch (error) {
+          console.error('Error in ICE candidate handler:', error);
+        }
+      });
     });
 
     return this.socket;
   }
 
+  // Дедупликация для обычных сообщений чата
   handleWithDeduplication(type, id, handler) {
     const key = `${type}:${id}`;
     const now = Date.now();
     
+    // Очистка старых записей
     for (const [k, timestamp] of this.messageQueue) {
       if (now - timestamp > 5000) {
         this.messageQueue.delete(k);
@@ -189,6 +231,32 @@ class SocketManager {
     
     this.messageQueue.set(key, now);
     handler();
+  }
+
+  // Дедупликация для уведомлений о звонках
+  handleCallWithDeduplication(type, callerId, handler) {
+    const key = `${type}:${callerId}`;
+    const now = Date.now();
+    
+    // Очистка старых записей (звонки держим дольше - 30 секунд)
+    for (const [k, timestamp] of this.callNotificationQueue) {
+      if (now - timestamp > 30000) {
+        this.callNotificationQueue.delete(k);
+      }
+    }
+    
+    if (this.callNotificationQueue.has(key)) {
+      console.log(`Duplicate ${type} from ${callerId} ignored`);
+      return;
+    }
+    
+    this.callNotificationQueue.set(key, now);
+    handler();
+    
+    // Автоматически очищаем запись через 30 секунд
+    setTimeout(() => {
+      this.callNotificationQueue.delete(key);
+    }, 30000);
   }
 
   // Отправка сообщений
@@ -290,6 +358,10 @@ class SocketManager {
 
   // Добавляем обработчик для ICE кандидатов
   addIceCandidateHandler(callback) {
+    if (!callback || typeof callback !== 'function') {
+      console.warn('Invalid ICE candidate handler');
+      return;
+    }
     this.iceCandidateHandlers.add(callback);
   }
 
@@ -299,6 +371,10 @@ class SocketManager {
 
   // Геттеры и сеттеры для обработчиков
   addMessageHandler(handler) {
+    if (!handler || typeof handler !== 'function') {
+      console.warn('Invalid message handler');
+      return;
+    }
     this.messageHandlers.add(handler);
   }
 
@@ -307,6 +383,10 @@ class SocketManager {
   }
 
   addUpdateHandler(handler) {
+    if (!handler || typeof handler !== 'function') {
+      console.warn('Invalid update handler');
+      return;
+    }
     this.updateHandlers.add(handler);
   }
 
@@ -315,6 +395,10 @@ class SocketManager {
   }
 
   addDeleteHandler(handler) {
+    if (!handler || typeof handler !== 'function') {
+      console.warn('Invalid delete handler');
+      return;
+    }
     this.deleteHandlers.add(handler);
   }
 
@@ -323,6 +407,10 @@ class SocketManager {
   }
 
   addCallRequestHandler(callback) {
+    if (!callback || typeof callback !== 'function') {
+      console.warn('Invalid call request handler');
+      return;
+    }
     this.callRequestHandlers.add(callback);
   }
 
@@ -331,6 +419,10 @@ class SocketManager {
   }
 
   addCallEndedHandler(callback) {
+    if (!callback || typeof callback !== 'function') {
+      console.warn('Invalid call ended handler');
+      return;
+    }
     this.callEndedHandlers.add(callback);
   }
 
@@ -339,6 +431,10 @@ class SocketManager {
   }
 
   addCallAcceptedHandler(callback) {
+    if (!callback || typeof callback !== 'function') {
+      console.warn('Invalid call accepted handler');
+      return;
+    }
     this.callAcceptedHandlers.add(callback);
   }
 
@@ -347,6 +443,10 @@ class SocketManager {
   }
 
   addCallRejectedHandler(callback) {
+    if (!callback || typeof callback !== 'function') {
+      console.warn('Invalid call rejected handler');
+      return;
+    }
     this.callRejectedHandlers.add(callback);
   }
 
@@ -360,6 +460,11 @@ class SocketManager {
 
   getUserId() {
     return this.userId;
+  }
+
+  // Метод для очистки очереди уведомлений о звонках (может быть полезен)
+  clearCallNotifications() {
+    this.callNotificationQueue.clear();
   }
 }
 
