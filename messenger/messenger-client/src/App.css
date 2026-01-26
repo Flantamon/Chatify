@@ -603,14 +603,6 @@ h2 {
 }
 
 /* Светлая тема для настроек */
-.profile-settings h2 {
-  color: #333333 !important;
-}
-
-.setting-item label {
-  color: #333333 !important;
-}
-
 .setting-item select {
   background-color: #ffffff !important;
   border-color: #e1e5e9 !important;
